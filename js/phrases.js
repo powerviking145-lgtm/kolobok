@@ -417,7 +417,7 @@ export function pickRandom(list, exclude = '') {
   return source[Math.floor(Math.random() * source.length)];
 }
 
-function pickNamedFrom(list, exclude = '') {
+export function pickNamedFrom(list, exclude = '') {
   const name = getPhrasePlayerName();
   let pool = list;
   if (name) {
