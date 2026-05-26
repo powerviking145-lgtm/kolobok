@@ -1,0 +1,13 @@
+{
+  "name": "kolobok",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:dev": "node scripts/build.mjs --dev",
+    "use:modules": "node scripts/build.mjs --modules",
+    "use:bundle": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

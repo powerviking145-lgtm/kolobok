@@ -17,8 +17,6 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="kolobok-build" content="116">
-
   <title>Колобок</title>
 
   <link rel="stylesheet" href="style.css" id="app-stylesheet">
@@ -898,6 +896,13 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     (async function () {
+      var TG_SLOW_TIPS = [
+        'Первый заход — до 2–3 мин, не закрывай Mini App',
+        'Тянем файлы с сервера…',
+        'Медленный интернет — норм, подожди',
+        'Почти готово, бро',
+      ];
+
       function appRoot() {
         var path = location.pathname || '/';
         var idx = path.indexOf('/kolobok');
@@ -910,16 +915,46 @@
         return location.origin + path;
       }
 
+      var slowPct = 8;
+      var slowTimer = null;
+      var slowTipIdx = 0;
+
       function setBoot(n) {
+        var show = Math.max(slowPct, Math.min(99, n));
         var p = document.getElementById('boot-loader-percent');
         var b = document.getElementById('boot-loader-bar');
         var pr = document.getElementById('boot-loader-progress');
-        if (p) p.textContent = n + '%';
-        if (b) b.style.width = n + '%';
-        if (pr) pr.setAttribute('aria-valuenow', String(n));
+        if (p) p.textContent = show + '%';
+        if (b) b.style.width = show + '%';
+        if (pr) pr.setAttribute('aria-valuenow', String(show));
+      }
+
+      function setBootTip(text) {
+        var tip = document.getElementById('boot-loader-tip');
+        if (tip) tip.textContent = text;
+      }
+
+      function startSlowProgress() {
+        setBootTip(TG_SLOW_TIPS[0]);
+        slowTimer = window.setInterval(function () {
+          if (slowPct < 93) slowPct += 1;
+          setBoot(slowPct);
+          if (slowPct % 10 === 0 && TG_SLOW_TIPS.length > 1) {
+            slowTipIdx = (slowTipIdx + 1) % TG_SLOW_TIPS.length;
+            setBootTip(TG_SLOW_TIPS[slowTipIdx]);
+          }
+        }, 2000);
+      }
+
+      function stopSlowProgress() {
+        if (slowTimer) {
+          window.clearInterval(slowTimer);
+          slowTimer = null;
+        }
       }
 
       function showFatal(msg) {
+        stopSlowProgress();
         var box = document.getElementById('boot-fatal-error');
         var text = document.getElementById('boot-fatal-text');
         if (text) text.textContent = msg;
@@ -934,12 +969,8 @@
       base.href = root;
       document.head.insertBefore(base, document.head.firstChild);
 
-      var metaBuild = document.querySelector('meta[name="kolobok-build"]');
-      var BUILD = (metaBuild && metaBuild.getAttribute('content')) || '116';
-
       setBoot(8);
       window.__kolobokBootProgress = setBoot;
-      window.__KOLOBOK_BUILD = BUILD;
 
       var tg = window.Telegram && window.Telegram.WebApp;
       if (tg) {
@@ -954,6 +985,17 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
+      var BUILD = '118';
+
+      try {
+        var buildMod = await import(root + 'js/build.js?_=' + Date.now());
+        if (buildMod && buildMod.BUILD) BUILD = buildMod.BUILD;
+      } catch (e) {
+        console.warn('Колобок: build.js', e);
+      }
+
+      window.__KOLOBOK_BUILD = BUILD;
+
       if (isTg && 'serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function (regs) {
           regs.forEach(function (r) {
@@ -967,68 +1009,37 @@
       var link = document.getElementById('app-stylesheet');
       if (link) link.href = root + 'style.css?v=' + BUILD;
 
-      try {
-        var buildRes = await Promise.race([
-          fetch(root + 'js/build.js?t=' + Date.now(), { cache: 'no-store' }),
-          new Promise(function (_, reject) {
-            window.setTimeout(function () {
-              reject(new Error('build-timeout'));
-            }, 2500);
-          }),
-        ]);
-        var buildText = await buildRes.text();
-        var buildMatch = buildText.match(/BUILD\s*=\s*['"](\d+)['"]/);
-        if (buildMatch) BUILD = buildMatch[1];
-        window.__KOLOBOK_BUILD = BUILD;
-        if (link) link.href = root + 'style.css?v=' + BUILD;
-      } catch (e) {}
-
-      var lastBuild = sessionStorage.getItem('kolobok-last-build');
-      if (lastBuild && lastBuild !== BUILD) {
-        sessionStorage.setItem('kolobok-last-build', BUILD);
-        location.reload();
-        return;
-      }
-      sessionStorage.setItem('kolobok-last-build', BUILD);
-
       document.getElementById('boot-retry-btn')?.addEventListener('click', function () {
         location.reload();
       });
-
-      var failTimer = null;
 
       function hideFatal() {
         var box = document.getElementById('boot-fatal-error');
         if (box) box.classList.remove('is-visible');
         window.__kolobokLaunched = true;
-        if (failTimer) {
-          window.clearTimeout(failTimer);
-          failTimer = null;
-        }
       }
 
       window.__kolobokHideFatal = hideFatal;
-      window.__kolobokClearBootTimer = function () {
-        if (failTimer) {
-          window.clearTimeout(failTimer);
-          failTimer = null;
-        }
-      };
+      window.__kolobokClearBootTimer = function () {};
 
       function onFail(err) {
-        window.__kolobokClearBootTimer();
+        stopSlowProgress();
         console.error('Колобок boot', err);
         showFatal('Не загрузилось: ' + (err && err.message ? err.message : 'ошибка модулей'));
       }
 
-      function onMainLoaded() {
-        hideFatal();
+      var bundleManifest = null;
+      try {
+        var manifestRes = await fetch(root + 'js/bundle/manifest.json?t=' + Date.now());
+        if (manifestRes.ok) bundleManifest = await manifestRes.json();
+      } catch (manifestErr) {
+        console.warn('Колобок: manifest', manifestErr);
       }
 
-      if (isTg) {
-        window.__kolobokTgBoot = true;
-        setBoot(10);
-        import(root + 'js/start.js?v=' + BUILD)
+      var useBundle = !!(bundleManifest && bundleManifest.enabled === true);
+
+      function loadTgModules() {
+        return import(root + 'js/start.js?v=' + BUILD)
           .then(function (m) {
             return m.runInitialBoot();
           })
@@ -1037,10 +1048,39 @@
             return import(root + 'js/main.js?v=' + BUILD);
           })
           .then(function (m) {
-            onMainLoaded();
+            hideFatal();
             return m.launchGame();
-          })
-          .catch(onFail);
+          });
+      }
+
+      function startTgLoad() {
+        startSlowProgress();
+        setBoot(12);
+        var chain = useBundle
+          ? import(root + 'js/bundle/' + bundleManifest.tg + '?v=' + BUILD)
+              .then(function (m) {
+                setBoot(94);
+                hideFatal();
+                return m.bootTg();
+              })
+              .catch(function (err) {
+                console.warn('Колобок: бандл не загрузился, модули', err);
+                return loadTgModules();
+              })
+          : loadTgModules();
+        chain.catch(onFail).finally(function () {
+          stopSlowProgress();
+        });
+      }
+
+      if (isTg) {
+        window.__kolobokTgBoot = true;
+        startTgLoad();
+      } else if (useBundle) {
+        import(root + 'js/bundle/' + bundleManifest.browser + '?v=' + BUILD).catch(function (err) {
+          console.warn('Колобок: browser bundle', err);
+          return import(root + 'js/entry.js?v=' + BUILD);
+        }).catch(onFail);
       } else {
         import(root + 'js/entry.js?v=' + BUILD).catch(onFail);
       }

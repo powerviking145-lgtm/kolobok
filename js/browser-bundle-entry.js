@@ -2,13 +2,6 @@ import { initTelegram } from './telegram.js';
 import { initViewport } from './viewport.js';
 import { launchGame } from './main.js';
 
-const BUILD = window.__KOLOBOK_BUILD || '118';
-
-const stylesheet = document.getElementById('app-stylesheet');
-if (stylesheet) {
-  stylesheet.href = `style.css?v=${BUILD}`;
-}
-
 function waitForDom() {
   if (document.readyState !== 'loading') {
     return Promise.resolve();
@@ -29,7 +22,8 @@ function primeTelegram() {
   }
 }
 
-async function startApp() {
+/** Один файл для браузера */
+export async function bootBrowser() {
   primeTelegram();
   await waitForDom();
   primeTelegram();
@@ -41,12 +35,12 @@ async function startApp() {
   await launchGame();
 }
 
-startApp().catch((err) => {
-  console.error('Колобок: entry', err);
+bootBrowser().catch((err) => {
+  console.error('Колобок: browser bundle', err);
   const text = document.getElementById('boot-fatal-text');
   const el = document.getElementById('boot-fatal-error');
   if (text) {
-    text.textContent = 'Не загрузилось. Закрой Mini App и открой снова.';
+    text.textContent = 'Не загрузилось. Обнови страницу или открой через бота.';
   }
   if (el) el.classList.add('is-visible');
   document.documentElement.classList.remove('boot-loading');

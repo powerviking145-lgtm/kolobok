@@ -1621,7 +1621,6 @@ function showBootFatal(message) {
   forceHideBootLoader();
 }
 
-/** Облако + имя колобка — до туториала, без обрыва по таймауту. */
 async function runCloudOnboardingGate() {
   if (!isFirebaseEnabled()) return;
 
@@ -1637,6 +1636,20 @@ async function runCloudOnboardingGate() {
   await runOnboardingIfNeeded();
   startCloudSync();
   await flushCloudSync().catch(() => {});
+}
+
+async function runCloudOnboardingGateCapped() {
+  const cap = CONFIG.cloudSync?.blockingMaxMs ?? 6000;
+  try {
+    await Promise.race([
+      runCloudOnboardingGate(),
+      new Promise((resolve) => {
+        window.setTimeout(resolve, cap);
+      }),
+    ]);
+  } catch (err) {
+    console.warn('Колобок: облако', err);
+  }
 }
 
 export async function launchGame() {
@@ -1844,7 +1857,10 @@ export async function launchGame() {
     ensureHomeDockVisible();
     updateShopButton();
 
-    await runCloudOnboardingGate();
+    forceHideBootLoader();
+    resumeHomeVideo();
+
+    await runCloudOnboardingGateCapped();
 
     if (!isTutorialCompleted()) {
       pauseGameTimers();
@@ -1867,12 +1883,3 @@ export async function launchGame() {
   }
 }
 
-if (!window.__kolobokTgBoot) {
-  initLegacy();
-}
-
-async function initLegacy() {
-  initTelegram();
-  initViewport();
-  await launchGame();
-}

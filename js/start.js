@@ -9,20 +9,22 @@ export async function runInitialBoot() {
   initTelegram();
   initViewport();
 
-  const bootRoot = document.getElementById('boot-loader');
   const tgFast = isTelegramMiniApp();
 
   window.__kolobokBootProgress?.(18);
 
-  await runBootLoader({
-    rootEl: bootRoot,
-    tipEl: document.getElementById('boot-loader-tip'),
-    barEl: document.getElementById('boot-loader-bar'),
-    percentEl: document.getElementById('boot-loader-percent'),
-    progressEl: document.getElementById('boot-loader-progress'),
-    preloadHomeVideos: null,
-    telegramFast: tgFast,
-  });
+  if (!tgFast) {
+    const bootRoot = document.getElementById('boot-loader');
+    await runBootLoader({
+      rootEl: bootRoot,
+      tipEl: document.getElementById('boot-loader-tip'),
+      barEl: document.getElementById('boot-loader-bar'),
+      percentEl: document.getElementById('boot-loader-percent'),
+      progressEl: document.getElementById('boot-loader-progress'),
+      preloadHomeVideos: null,
+      telegramFast: false,
+    });
+  }
 
-  window.__kolobokBootProgress?.(96);
+  window.__kolobokBootProgress?.(40);
 }

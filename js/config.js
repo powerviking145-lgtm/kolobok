@@ -26,6 +26,8 @@ export const CONFIG = {
     telegramWaitMs: 10000,
     pullTimeoutMs: 8000,
     pushTimeoutMs: 8000,
+    /** Не держать сплэш из‑за облака (имя подтянется позже) */
+    blockingMaxMs: 6000,
     /** Локальная отладка без Telegram: id + true */
     devBypass: false,
     devTelegramId: 999999001,
@@ -455,6 +457,14 @@ export const CONFIG = {
       'Скоро можно будет затапить.',
       'Спортивный режим: включён.',
     ],
+    telegramSlowTips: [
+      'Первый заход — до 2–3 мин, не закрывай Mini App',
+      'Тянем файлы с сервера…',
+      'Медленный интернет — норм, подожди',
+      'Почти готово, бро',
+    ],
+    telegramSlowProgressMs: 180000,
+    telegramSlowProgressStepMs: 2000,
   },
 
   viewport: {
