@@ -6,6 +6,14 @@ const { onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 
 const ofdTokenSecret = defineSecret('OFD_TOKEN_SECRET');
+const geminiApiKeySecret = defineSecret('GEMINI_API_KEY');
+
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const DEFAULT_GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash',
+];
 const OFD_URL = 'https://ofd.ru/api/partner/v3/receipts/GetReceipt';
 const FNS_URL = 'https://proverkacheka.nalog.ru:9999/v1/incomes/full';
 
@@ -133,6 +141,118 @@ async function verifyViaOfd(body, token) {
     receiptDate: doc.DateTime || null,
   };
 }
+
+function isModelUnavailable(status, errText) {
+  const msg = String(errText || '').toLowerCase();
+  return (
+    status === 404 ||
+    msg.includes('not found') ||
+    msg.includes('no longer available')
+  );
+}
+
+async function geminiGenerate(apiKey, model, body) {
+  const url = `${GEMINI_BASE}/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(28000),
+  });
+  const raw = await res.text().catch(() => '');
+  if (!res.ok) {
+    const err = new Error(raw || `Gemini HTTP ${res.status}`);
+    err.status = res.status;
+    err.body = raw;
+    throw err;
+  }
+  let data = {};
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    data = {};
+  }
+  const text =
+    data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
+  return { text, model };
+}
+
+exports.geminiFoodPhoto = onRequest(
+  { secrets: [geminiApiKeySecret], cors: true, region: 'europe-west1' },
+  async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ ok: false, error: 'Только POST' });
+      return;
+    }
+
+    const apiKey = geminiApiKeySecret.value();
+    if (!apiKey) {
+      res.status(503).json({
+        ok: false,
+        error: 'GEMINI_API_KEY не задан. firebase functions:secrets:set GEMINI_API_KEY',
+      });
+      return;
+    }
+
+    const body = req.body ?? {};
+    const { prompt, mimeType, imageBase64 } = body;
+    if (!prompt || !mimeType || !imageBase64) {
+      res.status(400).json({ ok: false, error: 'Нужны prompt, mimeType, imageBase64' });
+      return;
+    }
+
+    const models =
+      Array.isArray(body.models) && body.models.length
+        ? body.models
+        : DEFAULT_GEMINI_MODELS;
+
+    const genBody = {
+      generationConfig: {
+        temperature: Number(body.temperature) || 0.35,
+        maxOutputTokens: Number(body.maxOutputTokens) || 280,
+      },
+      contents: [
+        {
+          parts: [
+            { text: String(prompt) },
+            {
+              inline_data: {
+                mime_type: String(mimeType),
+                data: String(imageBase64),
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    let lastErr = 'Gemini недоступен';
+    for (const model of models) {
+      try {
+        const result = await geminiGenerate(apiKey, model, genBody);
+        if (!result.text?.trim()) {
+          lastErr = 'Пустой ответ Gemini';
+          continue;
+        }
+        res.json({ ok: true, text: result.text, model: result.model });
+        return;
+      } catch (err) {
+        lastErr = err.body || err.message || lastErr;
+        if (isModelUnavailable(err.status, lastErr)) continue;
+        const status = err.status && err.status >= 400 ? err.status : 502;
+        res.status(status).json({ ok: false, error: String(lastErr).slice(0, 400) });
+        return;
+      }
+    }
+
+    res.status(502).json({ ok: false, error: String(lastErr).slice(0, 400) });
+  }
+);
 
 exports.verifyReceipt = onRequest(
   { secrets: [ofdTokenSecret], cors: true, region: 'europe-west1' },

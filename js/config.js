@@ -682,7 +682,10 @@ export const CONFIG = {
     pickCount: 3,
     gemini: {
       enabled: true,
-      /** Не храни ключ здесь — попадёт в git. Только secrets.local.js + npm run build */
+      /** Запросы из РФ/ТГ — через Firebase (EU). Ключ только на сервере: GEMINI_API_KEY */
+      proxyUrl:
+        'https://europe-west1-kolobok-6032e.cloudfunctions.net/geminiFoodPhoto',
+      /** Локально без прокси: secrets.local.js + npm run build */
       apiKey: '',
       /** Приоритет (+ список из API). 1.5 сняты с API — не добавлять. */
       models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],

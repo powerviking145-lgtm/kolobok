@@ -87,6 +87,12 @@ function formatFeedError(message) {
   if (/fetch failed|Failed to fetch|ECONNRESET|сеть/i.test(msg)) {
     return 'Нет связи с Google. Попробуй ещё раз через минуту или другой интернет/VPN.';
   }
+  if (/location is not supported|из твоего региона|прокси firebase/i.test(msg)) {
+    return 'Gemini недоступен из твоего региона. Нужен прокси Firebase — один раз задеплой функцию (FOOD_PHOTO.md).';
+  }
+  if (/прокси gemini|GEMINI_API_KEY/i.test(msg)) {
+    return 'Сервер Kolobok ещё не настроен. Владельцу: задеплой geminiFoodPhoto + секрет GEMINI_API_KEY.';
+  }
   if (
     /service_disabled|api_key_service_blocked|не от ai studio|generativelanguage/i.test(
       msg
@@ -276,7 +282,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     setOpen(true);
     if (!isGeminiFoodPhotoReady() && !cfg().fallbackToMock) {
       showError(
-        'Нужен ключ Gemini: config.foodPhoto.gemini.apiKey или js/secrets.local.js'
+        'Нужен Gemini: proxyUrl (Firebase) или ключ в secrets.local.js — FOOD_PHOTO.md'
       );
       return;
     }

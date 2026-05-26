@@ -24,7 +24,9 @@ function resolveApiKey() {
 
 export function isGeminiFoodPhotoReady() {
   const c = geminiCfg();
-  return !!(c.enabled !== false && resolveApiKey());
+  if (c.enabled === false) return false;
+  if (String(c.proxyUrl || '').trim()) return true;
+  return !!resolveApiKey();
 }
 
 function withTimeout(promise, ms, label = 'timeout') {
@@ -225,6 +227,9 @@ const GEMINI_API_DISABLED =
 const GEMINI_KEY_LEAKED =
   'Старый ключ Gemini заблокирован (попал в открытый GitHub). В AI Studio удали его, создай новый → js/secrets.local.js → npm run build → git push.';
 
+const GEMINI_LOCATION =
+  'Gemini из твоего региона напрямую недоступен. Нужен прокси Firebase — см. FOOD_PHOTO.md (раздел «Прокси»).';
+
 function isGeminiApiDisabled(_res, errText) {
   const msg = String(errText || '').toLowerCase();
   return (
@@ -271,37 +276,131 @@ function isModelUnavailable(res, errText) {
   );
 }
 
+function buildRecognitionPrompt(c) {
+  const catalog = buildFoodCatalogPrompt();
+  return (
+    (c.prompt ?? '').trim() ||
+    [
+      'Ты видишь фото еды для игры «Колобок».',
+      'Выбери ОДИН id из каталога ниже — самый близкий к тому, что на фото.',
+      'Если еды не видно — id: "unknown".',
+      'comment — 1–2 короткие фразы от колобка игроку: ироничный братан, на «ты», без сюсюканья, без осуждения еды.',
+      'Ответь ТОЛЬКО JSON без markdown:',
+      '{"id":"apple","comment":"…","confidence":0.0}',
+      'confidence от 0 до 1.',
+      'Каталог:',
+      catalog,
+    ].join('\n')
+  );
+}
+
+function finishRecognition(text, model) {
+  const parsed = extractJsonObject(text);
+  if (!parsed) {
+    throw new Error('Gemini: не разобрал ответ');
+  }
+
+  if (String(parsed.id || '').toLowerCase() === 'unknown') {
+    throw new Error('На фото не видно еду — сфоткай тарелку или продукт поближе');
+  }
+
+  let food =
+    findFoodById(parsed.id) ||
+    findFoodLoose(parsed.nameRu || parsed.name || parsed.label);
+  if (!food && parsed.id) {
+    food = findFoodLoose(parsed.id);
+  }
+  if (!food) {
+    throw new Error('Gemini: еда не из каталога');
+  }
+
+  const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0.7));
+  const comment = String(parsed.comment || '').trim();
+
+  return {
+    food,
+    comment,
+    confidence,
+    source: 'gemini',
+    model,
+  };
+}
+
+function defaultModelList(c) {
+  return rankVisionModels(
+    Array.isArray(c.models) && c.models.length
+      ? c.models
+      : ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']
+  );
+}
+
+async function recognizeViaProxy({ prompt, base64, mimeType, models, c }) {
+  const res = await withTimeout(
+    fetchWithRetry(
+      String(c.proxyUrl).trim(),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          mimeType,
+          imageBase64: base64,
+          models,
+          temperature: c.temperature ?? 0.35,
+          maxOutputTokens: c.maxOutputTokens ?? 280,
+        }),
+      },
+      c
+    ),
+    c.timeoutMs ?? 28000,
+    'gemini-timeout'
+  );
+  const data = await res.json().catch(() => ({}));
+  const errMsg = String(data.error || '');
+  if (!res.ok || !data.ok) {
+    if (/location is not supported/i.test(errMsg)) {
+      throw new Error(GEMINI_LOCATION);
+    }
+    throw new Error(errMsg || `Прокси Gemini: HTTP ${res.status}`);
+  }
+  return { text: data.text, model: data.model || models[0] };
+}
+
 /**
  * @returns {Promise<{ food: object, comment: string, confidence: number, source: 'gemini', model: string }>}
  */
 export async function recognizeFoodWithGemini(file) {
   const c = geminiCfg();
+  const proxyUrl = String(c.proxyUrl || '').trim();
   const apiKey = resolveApiKey();
-  if (!apiKey) {
-    throw new Error('Нет ключа Gemini — добавь в config.foodPhoto.gemini.apiKey');
+  if (!proxyUrl && !apiKey) {
+    throw new Error(
+      'Нет proxyUrl (Firebase) и нет ключа Gemini — см. FOOD_PHOTO.md'
+    );
   }
 
   const maxSide = c.maxImageSide ?? 1024;
   const quality = c.jpegQuality ?? 0.82;
   const { base64, mimeType } = await compressImageFile(file, maxSide, quality);
 
+  const prompt = buildRecognitionPrompt(c);
+
+  if (proxyUrl) {
+    const models = defaultModelList(c);
+    const { text, model } = await recognizeViaProxy({
+      prompt,
+      base64,
+      mimeType,
+      models,
+      c,
+    });
+    return finishRecognition(text, model);
+  }
+
   const modelCandidates = await resolveModelCandidates(apiKey);
   if (!modelCandidates.length) {
     throw new Error('Gemini: нет подходящих vision-моделей для фото');
   }
-
-  const catalog = buildFoodCatalogPrompt();
-  const prompt = (c.prompt ?? '').trim() || [
-    'Ты видишь фото еды для игры «Колобок».',
-    'Выбери ОДИН id из каталога ниже — самый близкий к тому, что на фото.',
-    'Если еды не видно — id: "unknown".',
-    'comment — 1–2 короткие фразы от колобка игроку: ироничный братан, на «ты», без сюсюканья, без осуждения еды.',
-    'Ответь ТОЛЬКО JSON без markdown:',
-    '{"id":"apple","comment":"…","confidence":0.0}',
-    'confidence от 0 до 1.',
-    'Каталог:',
-    catalog,
-  ].join('\n');
 
   let lastErr = null;
   const tried = [];
@@ -372,50 +471,24 @@ export async function recognizeFoodWithGemini(file) {
           continue;
         }
 
+        if (/location is not supported|failed_precondition/i.test(errText)) {
+          throw new Error(GEMINI_LOCATION);
+        }
+
         throw new Error(`Gemini ${res.status}: ${errText.slice(0, 140)}`);
       }
 
       const data = await res.json();
       const text =
         data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
-      const parsed = extractJsonObject(text);
-      if (!parsed) {
-        throw new Error('Gemini: не разобрал ответ');
-      }
-
-      if (String(parsed.id || '').toLowerCase() === 'unknown') {
-        throw new Error('На фото не видно еду — сфоткай тарелку или продукт поближе');
-      }
-
-      let food =
-        findFoodById(parsed.id) ||
-        findFoodLoose(parsed.nameRu || parsed.name || parsed.label);
-      if (!food && parsed.id) {
-        food = findFoodLoose(parsed.id);
-      }
-      if (!food) {
-        throw new Error('Gemini: еда не из каталога');
-      }
-
-      const confidence = Math.max(
-        0,
-        Math.min(1, Number(parsed.confidence) || 0.7)
-      );
-      const comment = String(parsed.comment || '').trim();
-
-      return {
-        food,
-        comment,
-        confidence,
-        source: 'gemini',
-        model,
-      };
+      return finishRecognition(text, model);
     } catch (err) {
       const fatal = String(err?.message || '');
       if (
         fatal === GEMINI_RATE_LIMIT ||
         fatal === GEMINI_API_DISABLED ||
-        fatal === GEMINI_KEY_LEAKED
+        fatal === GEMINI_KEY_LEAKED ||
+        fatal === GEMINI_LOCATION
       ) {
         throw err;
       }

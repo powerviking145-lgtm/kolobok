@@ -29,9 +29,33 @@ window.__KOLOBOK_GEMINI_KEY = 'AIza...';
 <script src="js/secrets.local.js"></script>
 ```
 
-## Прод (Telegram)
+## Прокси (Россия / Telegram — обязательно)
 
-Ключ в клиенте виден — для прода позже **прокси** (Cloud Function / свой сервер). Сейчас — прототип с ключом в config.
+Google отвечает `User location is not supported` — с телефона в РФ **напрямую** Gemini не вызвать. Запрос идёт через **Firebase Function** в EU (`europe-west1`).
+
+### Один раз задеплой
+
+**Если на ПК `ECONNRESET` или `firebase` / `npx` не качаются** — не мучай PowerShell.  
+Полная инструкция: **[docs/DEPLOY-GEMINI-PROXY.md](docs/DEPLOY-GEMINI-PROXY.md)** (деплой через **Google Cloud Shell** в браузере).
+
+Кратко:
+
+1. `git push` с ПК (если git работает)  
+2. Открой https://console.cloud.google.com/cloudshell?project=kolobok-6032e  
+3. В терминале Cloud Shell: `git clone …` → `npm install` в `firebase/functions` → `firebase functions:secrets:set GEMINI_API_KEY` → `firebase deploy --only functions:geminiFoodPhoto`
+
+С ПК (только если npm нормально ставится):
+
+```powershell
+cd D:\kolobok
+npm install
+npm run firebase:login
+npm run firebase:use
+npm run firebase:secret:gemini
+npm run firebase:deploy:gemini
+```
+
+В `config.js` уже `foodPhoto.gemini.proxyUrl`. После деплоя: `npm run build`, `git push`, «Сфоткать еду» в боте.
 
 ## Файлы
 

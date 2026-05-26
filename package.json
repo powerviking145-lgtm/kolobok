@@ -5,9 +5,14 @@
     "build": "node scripts/build.mjs",
     "build:dev": "node scripts/build.mjs --dev",
     "use:modules": "node scripts/build.mjs --modules",
-    "use:bundle": "node scripts/build.mjs"
+    "use:bundle": "node scripts/build.mjs",
+    "firebase:login": "firebase login",
+    "firebase:use": "firebase use kolobok-6032e",
+    "firebase:secret:gemini": "firebase functions:secrets:set GEMINI_API_KEY",
+    "firebase:deploy:gemini": "firebase deploy --only functions:geminiFoodPhoto"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "firebase-tools": "^13.35.0"
   }
 }
