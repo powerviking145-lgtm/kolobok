@@ -1,0 +1,999 @@
+﻿<!DOCTYPE html>
+
+<html lang="ru" class="boot-loading">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <title>Колобок</title>
+
+  <link rel="stylesheet" href="style.css?v=110" id="app-stylesheet">
+  <link rel="preload" href="assets/kolobok/logo.png" as="image">
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; min-height: 100dvh; background: #1a1208; overflow: hidden; }
+    #app { min-height: 100dvh; width: 100%; max-width: 31.25rem; margin: 0 auto; position: relative; }
+    .boot-loader { position: absolute; inset: 0; z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #241408; color: #f5e6c8; }
+    #boot-fatal-error { display: none; position: fixed; inset: 0; z-index: 9999; padding: 1.5rem; background: #1a1208; color: #f5e6c8; font-family: system-ui, sans-serif; font-size: 0.95rem; line-height: 1.45; align-items: center; justify-content: center; text-align: center; }
+    #boot-fatal-error.is-visible { display: flex; flex-direction: column; gap: 1rem; }
+    #boot-retry-btn {
+      display: none;
+      padding: 0.65rem 1.25rem;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 0.75rem;
+      background: #f5a623;
+      color: #1a1208;
+      cursor: pointer;
+    }
+    #boot-fatal-error.is-visible #boot-retry-btn { display: inline-block; }
+  </style>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" media="print" onload="this.media='all'">
+
+</head>
+
+<body>
+
+  <div id="boot-fatal-error" role="alert" aria-live="assertive">
+    <span id="boot-fatal-text"></span>
+    <button type="button" id="boot-retry-btn">Повторить</button>
+  </div>
+
+  <video
+
+    id="boot-video-cache"
+
+    class="boot-video-cache"
+
+    muted
+
+    playsinline
+
+    preload="none"
+
+    hidden
+
+    aria-hidden="true"
+
+  ></video>
+
+  <div id="landscape-overlay" class="landscape-overlay" hidden aria-hidden="true">
+
+    <p class="landscape-overlay__text">Переверни телефон 📱</p>
+
+  </div>
+
+  <div id="app">
+
+    <div id="boot-loader" class="boot-loader" aria-busy="true" aria-live="polite" aria-label="Загрузка игры">
+
+      <div class="boot-loader__glow" aria-hidden="true"></div>
+
+      <div class="boot-loader__content">
+
+        <div class="boot-loader__orb" aria-hidden="true">
+
+          <img
+
+            class="boot-loader__logo"
+
+            src="assets/kolobok/logo.png"
+
+            width="96"
+
+            height="96"
+
+            alt=""
+
+            decoding="async"
+
+          />
+
+        </div>
+
+        <h1 class="boot-loader__title">
+
+          <span class="boot-loader__line">Я НЕ БУЛКА, НЕ ПИРОГ —</span>
+
+          <span class="boot-loader__line boot-loader__line--pepe">Я ПэПэшный</span>
+
+          <span class="boot-loader__line boot-loader__line--brand">Колобок</span>
+
+        </h1>
+
+        <p class="boot-loader__subtitle">ПП — Правильное Питание</p>
+
+        <p class="boot-loader__tip" id="boot-loader-tip">Заряжаем харизму…</p>
+
+      </div>
+
+      <div class="boot-loader__footer">
+
+        <div class="boot-loader__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="boot-loader-progress">
+
+          <div class="boot-loader__bar" id="boot-loader-bar"></div>
+
+        </div>
+
+        <p class="boot-loader__percent" id="boot-loader-percent">0%</p>
+
+      </div>
+
+    </div>
+
+    <div id="home-ui" class="home-ui game-screen">
+
+      <header class="top-panel zone--stats" id="stats-panel">
+
+        <div class="top-panel__row top-panel__row--head">
+
+          <div class="top-panel__tools">
+
+            <button type="button" class="icon-btn icon-btn--tutorial" id="btn-tutorial" aria-label="Повторить туториал">?</button>
+
+            <button type="button" class="icon-btn icon-btn--menu" id="btn-menu" aria-label="Меню">⚙</button>
+
+          </div>
+
+          <div class="top-panel__score-center top-panel__score" aria-hidden="false">
+
+            <div class="score-hub score-hub--capsule" id="score-hub" aria-live="polite" aria-label="Очки">
+
+              <span class="score-hub__star" aria-hidden="true">
+
+                <svg class="score-hub__star-svg" width="22" height="22" viewBox="0 0 24 24" focusable="false">
+
+                  <defs>
+
+                    <linearGradient id="score-star-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+
+                      <stop offset="0%" stop-color="#FFD86B"/>
+
+                      <stop offset="100%" stop-color="#F5A623"/>
+
+                    </linearGradient>
+
+                  </defs>
+
+                  <path fill="url(#score-star-grad)" d="M12 2.2l2.76 5.59 6.17.9-4.47 4.35 1.06 6.15L12 16.9l-5.52 2.29 1.06-6.15L3.07 8.69l6.17-.9L12 2.2z"/>
+
+                </svg>
+
+              </span>
+
+              <span class="score-hub__value" id="score-total">0</span>
+
+            </div>
+
+          </div>
+
+          <button type="button" class="icon-btn icon-btn--exit" id="btn-exit" aria-label="Выход">✕</button>
+
+        </div>
+
+        <button type="button" class="social-banner" id="social-banner" aria-label="Открыть роудмэп сообщества">
+
+          <span class="social-banner__pill">
+
+            <span class="social-banner__icon" aria-hidden="true">🍞</span>
+
+            <span class="social-banner__text">Нас уже <strong class="social-banner__count" id="social-banner-count">0</strong> мякишей</span>
+
+            <span class="social-banner__go" aria-hidden="true"></span>
+
+          </span>
+
+        </button>
+
+        <div class="top-panel__row top-panel__row--stats">
+
+          <div class="top-panel__stats" id="stats-bars"></div>
+
+        </div>
+
+      </header>
+
+      <div class="menu-sheet" id="menu-sheet" hidden aria-hidden="true">
+
+        <div class="menu-sheet__backdrop" id="menu-sheet-backdrop"></div>
+
+        <div class="menu-sheet__panel" role="dialog" aria-modal="true" aria-label="Меню">
+
+          <button type="button" class="menu-sheet__close" id="menu-sheet-close" aria-label="Закрыть">✕</button>
+
+          <ul class="menu-sheet__list" id="menu-sheet-list"></ul>
+
+        </div>
+
+      </div>
+
+      <div class="exit-modal" id="exit-modal" hidden aria-hidden="true">
+
+        <div class="exit-modal__backdrop" id="exit-modal-backdrop"></div>
+
+        <div class="exit-modal__card" role="dialog" aria-modal="true" aria-labelledby="exit-modal-title">
+
+          <h2 class="exit-modal__title" id="exit-modal-title">Выйти из игры?</h2>
+
+          <p class="exit-modal__text" id="exit-modal-text">Прогресс сохранён ✅<br>Колобок будет ждать 🥺</p>
+
+          <div class="exit-modal__actions">
+
+            <button type="button" class="btn btn--secondary" id="exit-modal-stay">Остаться</button>
+
+            <button type="button" class="btn btn--primary" id="exit-modal-leave">Выйти</button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <input type="file" id="receipt-scan-file" accept="image/*" hidden aria-hidden="true">
+
+      <div class="receipt-scan-modal" id="receipt-scan-modal" hidden aria-hidden="true">
+
+        <div class="receipt-scan-modal__backdrop" id="receipt-scan-backdrop"></div>
+
+        <div class="receipt-scan-modal__card" role="dialog" aria-modal="true" aria-labelledby="receipt-scan-title">
+
+          <button type="button" class="receipt-scan-modal__close" id="receipt-scan-close" aria-label="Закрыть">✕</button>
+
+          <h2 class="receipt-scan-modal__title" id="receipt-scan-title">Покупки в чеке</h2>
+
+          <p class="receipt-scan-modal__mock" id="receipt-scan-mock-badge" hidden>Тестовый режим (mock)</p>
+
+          <div class="receipt-scan-modal__state" data-receipt-scan-state="pick">
+
+            <p class="receipt-scan-modal__pick-text">Как считать чек?</p>
+
+            <div class="receipt-scan-modal__pick-actions">
+
+              <button type="button" class="btn btn--secondary" id="receipt-scan-pick-qr">🔍 Скан QR</button>
+
+              <button type="button" class="btn btn--secondary" id="receipt-scan-pick-photo">📸 Фото чека</button>
+
+              <button type="button" class="btn btn--primary" id="receipt-scan-pick-manual">✏️ ФН / ФД / ФП</button>
+
+            </div>
+
+          </div>
+
+          <div class="receipt-scan-modal__state" data-receipt-scan-state="manual" hidden>
+
+            <p class="receipt-scan-modal__hint" id="receipt-scan-manual-hint"></p>
+
+            <form class="receipt-scan-manual" id="receipt-scan-manual-form">
+
+              <label class="receipt-scan-manual__field">
+
+                <span>ФН</span>
+
+                <input name="fn" inputmode="numeric" autocomplete="off" placeholder="738244090014396" required>
+
+              </label>
+
+              <label class="receipt-scan-manual__field">
+
+                <span>ФД</span>
+
+                <input name="fd" inputmode="numeric" autocomplete="off" placeholder="160469" required>
+
+              </label>
+
+              <label class="receipt-scan-manual__field">
+
+                <span>ФП</span>
+
+                <input name="fp" inputmode="numeric" autocomplete="off" placeholder="2402212345" required>
+
+              </label>
+
+              <label class="receipt-scan-manual__field">
+
+                <span>Итого, ?</span>
+
+                <input name="sum" inputmode="decimal" autocomplete="off" placeholder="349.00" required>
+
+              </label>
+
+              <label class="receipt-scan-manual__field">
+
+                <span>Дата</span>
+
+                <input name="date" inputmode="numeric" autocomplete="off" placeholder="24.05.2026" required>
+
+              </label>
+
+              <label class="receipt-scan-manual__field">
+
+                <span>Время</span>
+
+                <input name="time" inputmode="numeric" autocomplete="off" placeholder="11:52" required>
+
+              </label>
+
+              <div class="receipt-scan-manual__actions">
+
+                <button type="button" class="btn btn--secondary" id="receipt-scan-manual-back">Назад</button>
+
+                <button type="submit" class="btn btn--primary">Проверить</button>
+
+              </div>
+
+            </form>
+
+          </div>
+          <div class="receipt-scan-modal__state" data-receipt-scan-state="loading" hidden>
+            <p class="receipt-scan-modal__loading" id="receipt-scan-loading-text">Запрос в ФНС…</p>
+          </div>
+
+          <div class="receipt-scan-modal__state" data-receipt-scan-state="error" hidden>
+
+            <p class="receipt-scan-modal__error" id="receipt-scan-error-text"></p>
+
+            <button type="button" class="btn btn--secondary receipt-scan-modal__close-btn" id="receipt-scan-error-retry" hidden>
+              Повторить
+            </button>
+
+            <button type="button" class="btn btn--secondary receipt-scan-modal__close-btn" id="receipt-scan-error-manual" hidden>
+
+              Ввести ФН / ФД / ФП
+
+            </button>
+
+            <button type="button" class="btn btn--primary receipt-scan-modal__close-btn" id="receipt-scan-close-error">
+
+              Закрыть
+
+            </button>
+
+          </div>
+
+          <div class="receipt-scan-modal__state" data-receipt-scan-state="result" hidden>
+
+            <p class="receipt-scan-modal__meta" id="receipt-scan-meta"></p>
+
+            <ul class="receipt-scan-modal__list" id="receipt-scan-list"></ul>
+
+            <button type="button" class="btn btn--primary receipt-scan-modal__close-btn" id="receipt-scan-close-result">
+
+              Закрыть
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <main class="zone zone--kolobok kolobok-stage">
+
+        <div class="stage-hero">
+
+        <div class="particles" id="home-particles" aria-hidden="true"></div>
+
+        <button type="button" class="kolobok kolobok--normal" id="kolobok" aria-label="Тапай колобка">
+
+          <div class="kolobok-shadow" aria-hidden="true"></div>
+
+          <div class="kolobok__breathe">
+
+            <span class="kolobok__videos" aria-hidden="true">
+
+              <video
+
+                class="kolobok__video is-visible is-front"
+
+                id="kolobok-video-a"
+
+                muted
+
+                playsinline
+
+                disablepictureinpicture
+
+                preload="metadata"
+
+                poster="assets/kolobok/kolobok-home-poster.jpg"
+
+              ></video>
+
+              <video
+
+                class="kolobok__video"
+
+                id="kolobok-video-b"
+
+                muted
+
+                playsinline
+
+                disablepictureinpicture
+
+                preload="metadata"
+
+                poster="assets/kolobok/kolobok-home-2-poster.jpg"
+
+              ></video>
+
+            </span>
+
+          </div>
+
+        </button>
+
+        <article class="shop-upgrade-hint" id="shop-upgrade-hint" hidden aria-hidden="true">
+
+          <p class="shop-upgrade-hint__text" id="shop-upgrade-hint-text"></p>
+
+          <div class="shop-upgrade-hint__actions">
+
+            <button type="button" class="btn btn--mini btn--primary" id="shop-upgrade-hint-open">
+
+              Открыть магазин
+
+            </button>
+
+            <button type="button" class="btn btn--mini btn--secondary" id="shop-upgrade-hint-later">
+
+              Позже
+
+            </button>
+
+          </div>
+
+        </article>
+
+        <div class="speech-dock speech-dock--side" id="idle-chat-dock">
+
+          <div class="idle-chat-bubble speech-bubble is-hidden" id="idle-chat-bubble" role="status" aria-live="polite"></div>
+
+          <div class="speech-thought" aria-hidden="true">
+
+            <span class="speech-thought__dot speech-thought__dot--1"></span>
+
+            <span class="speech-thought__dot speech-thought__dot--2"></span>
+
+            <span class="speech-thought__dot speech-thought__dot--3"></span>
+
+          </div>
+
+        </div>
+
+        <div class="action-prompt" id="action-prompt" hidden aria-hidden="true">
+
+          <p class="action-prompt__text" id="action-prompt-text"></p>
+
+        </div>
+
+        <div class="floating-reactions" id="floating-reactions" aria-hidden="true"></div>
+
+        <div id="purchase-layer" class="unpacking-flow" hidden aria-hidden="true">
+
+          <div class="unpack-step unpack-step--1" data-unpack-step="1" hidden>
+
+            <div class="unpack-bag" id="unpack-bag" aria-hidden="true">🛍️</div>
+
+            <div class="unpack-confetti" id="unpack-confetti" aria-hidden="true"></div>
+
+          </div>
+
+          <div class="unpack-step unpack-step--2" data-unpack-step="2" hidden>
+
+            <article class="unpack-receipt" id="unpack-receipt">
+
+              <p class="unpack-receipt__store" id="unpack-receipt-store">Чек · Пятёрочка / Перекрёсток / Чижик</p>
+
+              <p class="unpack-receipt__dash">- - - - - - - - - - -</p>
+
+              <ul class="unpack-receipt__lines" id="unpack-receipt-lines"></ul>
+
+              <p class="unpack-receipt__dash unpack-receipt__dash--2" id="unpack-receipt-divider">- - - - - - - - - - -</p>
+
+              <p class="unpack-receipt__total" id="unpack-receipt-total"></p>
+
+            </article>
+
+            <button type="button" class="btn btn--primary unpack-receipt__btn" id="unpack-receipt-next">Окей, разбираем дальше ></button>
+
+          </div>
+
+          <div class="unpack-step unpack-step--3" data-unpack-step="3" hidden>
+
+            <article class="unpack-receipt unpack-receipt--mini" id="unpack-receipt-mini"></article>
+
+            <div class="unpack-orbit" id="unpack-orbit" aria-hidden="true"></div>
+
+            <button type="button" class="btn btn--primary unpack-fridge__btn" id="unpack-fridge-btn">Закинуть в холодильник 🧊</button>
+
+          </div>
+
+          <div class="unpack-step unpack-step--4" data-unpack-step="4" hidden>
+
+            <div class="unpack-stat-floats" id="unpack-stat-floats" aria-hidden="true"></div>
+
+            <button type="button" class="btn btn--primary unpack-home__btn" id="unpack-home-btn">На главную <</button>
+
+          </div>
+
+        </div>
+
+        <div class="home-spawns" id="home-spawns" aria-hidden="false"></div>
+
+        <div class="tap-floats" id="tap-floats" aria-hidden="true"></div>
+
+        </div>
+
+        <article class="nutrition-tip" id="nutrition-tip" hidden aria-hidden="true">
+
+          <span class="nutrition-tip__icon" aria-hidden="true">💡</span>
+
+          <div class="nutrition-tip__body">
+
+            <p class="nutrition-tip__label">Совет от Колобка</p>
+
+            <p class="nutrition-tip__text" id="nutrition-tip-text"></p>
+
+            <div class="nutrition-tip__actions">
+
+              <button type="button" class="btn btn--mini btn--primary" id="nutrition-tip-ok">Понятно 👌</button>
+
+            </div>
+
+          </div>
+
+        </article>
+
+        <footer class="zone zone--buttons actions" id="footer-buttons">
+
+          <div class="footer-buttons__row" id="footer-buttons-row">
+
+            <button type="button" class="btn btn--secondary btn-secondary" id="btn-receipt">
+
+              <span class="btn-icon" aria-hidden="true">🍔</span>
+
+              <span class="btn__text">Кормить</span>
+
+            </button>
+
+            <button type="button" class="btn btn--secondary btn-secondary" id="btn-shop">
+
+              <span class="btn-icon" aria-hidden="true">🛍</span>
+
+              <span class="btn__text">Магазин</span>
+
+            </button>
+
+          </div>
+
+          <button type="button" class="btn btn--secondary btn-secondary" id="btn-run">
+
+            <span class="btn-icon" aria-hidden="true">🔥</span>
+
+            <span class="btn__text">Сжечь калории</span>
+
+          </button>
+
+          <div class="home-toast" id="home-toast" hidden role="status" aria-live="polite"></div>
+
+        </footer>
+
+      </main>
+
+      <div id="roadmap-screen" class="roadmap-screen" hidden aria-hidden="true">
+
+        <div class="roadmap-screen__scroll">
+
+          <header class="roadmap-screen__head">
+
+            <button type="button" class="roadmap-screen__back" id="roadmap-back" aria-label="Назад на главную">
+
+              <span class="roadmap-screen__back-pill">
+
+                <span class="roadmap-screen__back-go" aria-hidden="true"></span>
+
+                <span class="roadmap-screen__back-text">Назад</span>
+
+              </span>
+
+            </button>
+
+            <p class="roadmap-screen__title">
+
+              <span class="roadmap-screen__title-icon" aria-hidden="true">🍞</span>
+
+              Нас <strong id="roadmap-head-count">0</strong> мякишей
+
+            </p>
+
+          </header>
+
+          <div class="roadmap-screen__body" id="roadmap-body" aria-live="polite">
+
+            <section class="roadmap-next" id="roadmap-next" hidden>
+
+              <h2 class="roadmap-next__label" id="roadmap-next-label">Следующая цель</h2>
+
+              <p class="roadmap-next__range" id="roadmap-next-range"></p>
+
+              <p class="roadmap-next__reward" id="roadmap-next-reward"></p>
+
+              <div class="roadmap-next__track" aria-hidden="true">
+
+                <div class="roadmap-next__fill" id="roadmap-next-fill"></div>
+
+              </div>
+
+              <div class="roadmap-next__meta">
+
+                <span class="roadmap-next__progress" id="roadmap-next-progress"></span>
+
+                <span class="roadmap-next__pct" id="roadmap-next-pct"></span>
+
+              </div>
+
+              <p class="roadmap-next__remain" id="roadmap-next-remain"></p>
+
+            </section>
+
+            <ul class="roadmap-list" id="roadmap-list"></ul>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div id="shop-screen" class="shop-screen" hidden aria-hidden="true">
+
+        <div class="shop-screen__scroll">
+
+          <header class="shop-screen__head">
+
+            <div class="shop-screen__head-row">
+
+              <button type="button" class="shop-screen__back" id="shop-back" aria-label="Назад на главную">
+
+                <span class="shop-screen__back-pill">
+
+                  <span class="shop-screen__back-go" aria-hidden="true"></span>
+
+                  <span class="shop-screen__back-text">Назад</span>
+
+                </span>
+
+              </button>
+
+              <h1 class="shop-screen__title" id="shop-title">Магазин</h1>
+
+              <p class="shop-screen__stars" id="shop-stars" aria-label="Звёзды">
+
+                <span class="shop-screen__stars-icon" aria-hidden="true">?</span>
+
+                <span id="shop-stars-value">0</span>
+
+              </p>
+
+            </div>
+
+            <nav class="shop-screen__tabs" role="tablist" aria-label="Разделы магазина">
+
+              <button
+
+                type="button"
+
+                class="shop-screen__tab is-active"
+
+                id="shop-tab-houses"
+
+                role="tab"
+
+                aria-selected="true"
+
+                aria-controls="shop-panel-houses"
+
+                data-shop-tab="houses"
+
+              >
+
+                <span aria-hidden="true">🏠</span> Дома
+
+              </button>
+
+              <button
+
+                type="button"
+
+                class="shop-screen__tab"
+
+                id="shop-tab-upgrade"
+
+                role="tab"
+
+                aria-selected="false"
+
+                aria-controls="shop-panel-upgrade"
+
+                data-shop-tab="upgrade"
+
+              >
+
+                <span aria-hidden="true">💪</span> Прокачка
+
+              </button>
+
+            </nav>
+
+          </header>
+
+          <div class="shop-tutorial" id="shop-tutorial" hidden aria-hidden="true">
+
+            <div class="shop-tutorial__dim" aria-hidden="true"></div>
+
+            <div class="tutorial-card shop-tutorial__card" id="shop-tutorial-card">
+
+              <p class="tutorial-card__text" id="shop-tutorial-text"></p>
+
+              <button type="button" class="btn btn--primary tutorial-card__next" id="shop-tutorial-next">
+
+                Дальше
+
+              </button>
+
+            </div>
+
+          </div>
+
+          <div class="shop-screen__body">
+
+            <section
+
+              class="shop-screen__panel is-active"
+
+              id="shop-panel-houses"
+
+              role="tabpanel"
+
+              aria-labelledby="shop-tab-houses"
+
+            >
+
+              <ul class="shop-houses" id="shop-houses-list" aria-live="polite"></ul>
+
+            </section>
+
+            <section
+
+              class="shop-screen__panel"
+
+              id="shop-panel-upgrade"
+
+              role="tabpanel"
+
+              aria-labelledby="shop-tab-upgrade"
+
+              hidden
+
+            >
+
+              <ul class="shop-upgrades" id="shop-upgrade-list" aria-live="polite"></ul>
+
+            </section>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="tutorial-overlay" id="tutorial-overlay" hidden aria-hidden="true">
+
+        <div class="tutorial-spotlight" id="tutorial-spotlight" hidden></div>
+
+        <div class="tutorial-card" id="tutorial-card">
+
+          <p class="tutorial-card__text" id="tutorial-text"></p>
+
+          <button type="button" class="btn btn--primary tutorial-card__next" id="tutorial-next">Дальше</button>
+
+          <div class="tutorial-dots" id="tutorial-dots" aria-hidden="true"></div>
+
+          <button type="button" class="tutorial-skip" id="tutorial-skip">Пропустить туториал</button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div id="runner-layer" class="runner-layer" hidden aria-hidden="true">
+
+      <header class="runner-header" id="runner-stats" hidden>
+
+        <div class="runner-stats__grid" id="runner-stats-bars"></div>
+
+        <div class="runner-meta" id="runner-hud">
+
+          <span class="runner-meta__distance" id="runner-distance">0 м</span>
+
+          <span class="runner-meta__score">? <span id="runner-score">0</span></span>
+
+          <button type="button" class="runner-meta__surrender" id="runner-surrender">Сдаться</button>
+
+        </div>
+
+        <span class="runner-toast" id="runner-toast" hidden></span>
+
+      </header>
+
+      <canvas id="runner-canvas" class="runner-canvas"></canvas>
+
+      <div class="runner-results" id="runner-results" hidden>
+
+        <div class="runner-results__copy">
+
+          <h2 class="runner-results__title" id="runner-result-title">Попался!</h2>
+
+          <p class="runner-results__line">Дистанция: <strong id="runner-result-distance">0</strong> м</p>
+
+          <p class="runner-results__line">Очки: <strong id="runner-result-score">0</strong></p>
+
+          <p class="runner-results__line">Рекорд очков: <strong id="runner-result-best">0</strong></p>
+
+          <p class="runner-results__record" id="runner-result-record" hidden>🎉 Новый рекорд!</p>
+
+        </div>
+
+        <div class="runner-results__actions">
+
+          <button type="button" class="btn btn--secondary" id="runner-btn-again">🏃 Заново</button>
+
+          <button type="button" class="btn btn--primary" id="runner-btn-home">На главную</button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="onboarding-modal" id="onboarding-overlay" hidden aria-hidden="true">
+    <div class="onboarding-modal__backdrop"></div>
+    <div class="onboarding-modal__card" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+      <h2 class="onboarding-modal__title" id="onboarding-title">Как зовут твоего колобка?</h2>
+      <p class="onboarding-modal__hint">2–16 символов, бро</p>
+      <input
+        type="text"
+        class="onboarding-modal__input"
+        id="onboarding-name-input"
+        maxlength="16"
+        autocomplete="off"
+        autocapitalize="words"
+        enterkeyhint="done"
+      />
+      <p class="onboarding-modal__error" id="onboarding-name-error" aria-live="polite"></p>
+      <button type="button" class="btn btn--primary onboarding-modal__submit" id="onboarding-name-submit">Погнали</button>
+    </div>
+  </div>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    (function () {
+      var BUILD = '110';
+
+      function appRoot() {
+        var path = location.pathname || '/';
+        var idx = path.indexOf('/kolobok');
+        if (idx !== -1) {
+          path = path.slice(0, idx + '/kolobok'.length);
+        } else if (!/\/$/.test(path)) {
+          path = path.replace(/[^/]*$/, '');
+        }
+        if (path.slice(-1) !== '/') path += '/';
+        return location.origin + path;
+      }
+
+      function setBoot(n) {
+        var p = document.getElementById('boot-loader-percent');
+        var b = document.getElementById('boot-loader-bar');
+        var pr = document.getElementById('boot-loader-progress');
+        if (p) p.textContent = n + '%';
+        if (b) b.style.width = n + '%';
+        if (pr) pr.setAttribute('aria-valuenow', String(n));
+      }
+
+      function showFatal(msg) {
+        var box = document.getElementById('boot-fatal-error');
+        var text = document.getElementById('boot-fatal-text');
+        if (text) text.textContent = msg;
+        if (box) box.classList.add('is-visible');
+        document.documentElement.classList.remove('boot-loading');
+        var boot = document.getElementById('boot-loader');
+        if (boot) boot.hidden = true;
+      }
+
+      var root = appRoot();
+      var base = document.createElement('base');
+      base.href = root;
+      document.head.insertBefore(base, document.head.firstChild);
+
+      var link = document.getElementById('app-stylesheet');
+      if (link) link.href = root + 'style.css?v=' + BUILD;
+
+      setBoot(6);
+      window.__kolobokBootProgress = setBoot;
+
+      var tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+        } catch (e) {}
+      }
+
+      var isTg = !!(
+        tg &&
+        (tg.initData || (tg.platform && tg.platform !== 'unknown'))
+      );
+
+      document.getElementById('boot-retry-btn')?.addEventListener('click', function () {
+        location.reload();
+      });
+
+      var failTimer = window.setTimeout(function () {
+        if (!window.__kolobokLaunched) {
+          showFatal('Долго грузится. Нажми «Повторить» или закрой Mini App и открой снова.');
+        }
+      }, 18000);
+
+      function onFail(err) {
+        window.clearTimeout(failTimer);
+        console.error('Колобок boot', err);
+        showFatal('Не загрузилось: ' + (err && err.message ? err.message : 'ошибка модулей'));
+      }
+
+      function onReady() {
+        window.__kolobokLaunched = true;
+        window.clearTimeout(failTimer);
+      }
+
+      if (isTg) {
+        window.__kolobokTgBoot = true;
+        setBoot(10);
+        import(root + 'js/start.js')
+          .then(function (m) {
+            return m.runInitialBoot();
+          })
+          .then(function () {
+            setBoot(94);
+            return import(root + 'js/main.js');
+          })
+          .then(function (m) {
+            return m.launchGame();
+          })
+          .then(onReady)
+          .catch(onFail);
+      } else {
+        import(root + 'js/entry.js')
+          .then(onReady)
+          .catch(onFail);
+      }
+    })();
+  </script>
+
+</body>
+
+</html>
+

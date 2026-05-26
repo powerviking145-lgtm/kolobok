@@ -1,0 +1,537 @@
+import { CONFIG } from './config.js';
+import { vibrateAchievement } from './homeUi.js';
+import { positionSpeechBubble } from './speechPosition.js';
+
+const STORAGE_KEY = 'tutorialCompleted';
+
+export function isTutorialCompleted() {
+  return localStorage.getItem(STORAGE_KEY) === 'true';
+}
+
+export function resetTutorialFlag() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+export function createTutorialController({
+  overlay,
+  spotlight,
+  card,
+  textEl,
+  nextBtn,
+  skipBtn,
+  dotsEl,
+  stage,
+  kolobokEl,
+  speechBubble,
+  speechDock,
+  replySystem,
+  onComplete,
+  onStart,
+  onFoodTapped,
+  onSpawnTutorialFood,
+}) {
+  const steps = CONFIG.tutorial.steps;
+  let currentStep = 0;
+  let active = false;
+  let resizeHandler = null;
+  let spotlightTarget = null;
+
+  function renderDots() {
+    if (!dotsEl) return;
+    dotsEl.innerHTML = steps
+      .map((_, i) => `<span class="tutorial-dot${i === currentStep ? ' is-active' : ''}"></span>`)
+      .join('');
+  }
+
+  /** Реальные границы оверлея — для spotlight и привязки к target. */
+  function overlayBounds() {
+    const base = overlay?.getBoundingClientRect();
+    if (base?.width && base?.height) return base;
+    return {
+      left: 0,
+      top: 0,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      right: window.innerWidth,
+      bottom: window.innerHeight,
+    };
+  }
+
+  /** Видимая зона оверлея (для clamp карточки на мобилке). */
+  function overlayRect() {
+    const base = overlayBounds();
+    const vv = window.visualViewport;
+    if (!vv) return base;
+
+    const top = Math.max(0, vv.offsetTop - base.top);
+    const height = Math.min(base.height, vv.height);
+    return {
+      left: base.left,
+      top: base.top + top,
+      width: base.width,
+      height,
+      right: base.right,
+      bottom: base.top + top + height,
+    };
+  }
+
+  function measureCardSize() {
+    if (!card) return { w: 280, h: 160 };
+    const prev = card.style.visibility;
+    card.style.visibility = 'hidden';
+    card.style.display = 'block';
+    const rect = card.getBoundingClientRect();
+    card.style.visibility = prev;
+    return {
+      w: rect.width || 280,
+      h: rect.height || 160,
+    };
+  }
+
+  function clampInOverlay(left, top, cardW, cardH, pad) {
+    const b = overlayBounds();
+    const maxLeft = Math.max(pad, b.width - cardW - pad);
+    const maxTop = Math.max(pad, b.height - cardH - pad);
+    return {
+      left: Math.max(pad, Math.min(left, maxLeft)),
+      top: Math.max(pad, Math.min(top, maxTop)),
+    };
+  }
+
+  function getStatsFocusElement() {
+    return (
+      document.getElementById('stats-bars') ||
+      document.querySelector('.top-panel__row--stats')
+    );
+  }
+
+  function clearSpotlight() {
+    spotlight?.setAttribute('hidden', '');
+    spotlight?.classList.remove('tutorial-spotlight--full', 'tutorial-spotlight--stats');
+    document.querySelectorAll('.tutorial-cutout').forEach((el) => {
+      el.classList.remove('tutorial-cutout');
+      el.style.removeProperty('--tutorial-dim');
+    });
+    document.querySelectorAll('.tutorial-highlight').forEach((el) => {
+      el.classList.remove('tutorial-highlight');
+    });
+    spotlightTarget = null;
+  }
+
+  function cleanupUi() {
+    clearSpotlight();
+    hideDemoSpeech();
+    document.querySelectorAll('.tutorial-food').forEach((el) => el.remove());
+    overlay?.setAttribute('hidden', '');
+    overlay?.setAttribute('aria-hidden', 'true');
+    document.documentElement.classList.remove('is-tutorial-active');
+  }
+
+  /** Колобок — кнопка на весь stage; подсветка только по центру (персонаж). */
+  function getKolobokFocusRect() {
+    const stageEl = stage || document.querySelector('.stage-hero');
+    if (!stageEl) return null;
+    const r = stageEl.getBoundingClientRect();
+    const w = r.width * 0.52;
+    const h = r.height * 0.48;
+    return {
+      left: r.left + (r.width - w) / 2,
+      top: r.top + r.height * 0.2,
+      width: w,
+      height: h,
+    };
+  }
+
+  function applySpotlightRect(rect, dimColor, highlightEl = null) {
+    clearSpotlight();
+    if (!spotlight || !overlay || !rect) return;
+
+    const pad = CONFIG.tutorial.spotlightPad ?? 10;
+    const o = overlayBounds();
+
+    spotlight.classList.remove('tutorial-spotlight--full');
+    spotlight.style.left = `${rect.left - o.left - pad}px`;
+    spotlight.style.top = `${rect.top - o.top - pad}px`;
+    spotlight.style.width = `${rect.width + pad * 2}px`;
+    spotlight.style.height = `${rect.height + pad * 2}px`;
+    spotlight.style.background = 'transparent';
+    spotlight.style.setProperty('--tutorial-dim', dimColor);
+    spotlight.style.boxShadow = `0 0 0 9999px ${dimColor}`;
+    spotlight.removeAttribute('hidden');
+
+    if (highlightEl) {
+      highlightEl.classList.add('tutorial-highlight', 'tutorial-cutout');
+      spotlightTarget = highlightEl;
+    } else {
+      spotlightTarget = null;
+    }
+  }
+
+  function applySpotlight(target, dimColor, options = {}) {
+    clearSpotlight();
+    if (!spotlight || !overlay) return;
+
+    const statsFocus = options.statsFocus === true;
+
+    if (target?.id === 'kolobok') {
+      const focus = getKolobokFocusRect();
+      if (focus) {
+        applySpotlightRect(focus, dimColor);
+        return;
+      }
+    }
+
+    const pad = CONFIG.tutorial.spotlightPad ?? 10;
+    const o = overlayBounds();
+
+    if (!target) {
+      spotlight.classList.add('tutorial-spotlight--full');
+      spotlight.style.left = '0';
+      spotlight.style.top = '0';
+      spotlight.style.width = '100%';
+      spotlight.style.height = '100%';
+      spotlight.style.borderRadius = '0';
+      spotlight.style.background = dimColor;
+      spotlight.style.boxShadow = 'none';
+      spotlight.removeAttribute('hidden');
+      return;
+    }
+
+    spotlight.classList.remove('tutorial-spotlight--full');
+    const rect = target.getBoundingClientRect();
+    spotlight.style.left = `${rect.left - o.left - pad}px`;
+    spotlight.style.top = `${rect.top - o.top - pad}px`;
+    spotlight.style.width = `${rect.width + pad * 2}px`;
+    spotlight.style.height = `${rect.height + pad * 2}px`;
+    spotlight.style.background = 'transparent';
+    spotlight.style.setProperty('--tutorial-dim', dimColor);
+    if (statsFocus) {
+      spotlight.classList.add('tutorial-spotlight--stats');
+      spotlight.style.boxShadow = `0 0 0 9999px ${dimColor}, 0 0 1.1rem 0.35rem rgba(255, 184, 77, 0.65)`;
+    } else {
+      spotlight.style.boxShadow = `0 0 0 9999px ${dimColor}`;
+    }
+    spotlight.removeAttribute('hidden');
+
+    target.classList.add('tutorial-highlight', 'tutorial-cutout');
+    spotlightTarget = target;
+  }
+
+  function layoutStepSpotlight(step) {
+    const dim =
+      step.dim === 'light'
+        ? CONFIG.tutorial.dimLight || 'rgba(0,0,0,0.45)'
+        : CONFIG.tutorial.dimStrong || 'rgba(0,0,0,0.75)';
+
+    let target = null;
+    if (step.id === 'stats') {
+      target = getStatsFocusElement();
+    } else if (step.targetSelector) {
+      target = document.querySelector(step.targetSelector);
+    }
+
+    if (step.id === 'speech_example' && step.demoSpeech) {
+      applySpotlight(null, dim);
+      showDemoSpeech(step.demoSpeech);
+      positionCard(step);
+      return;
+    }
+
+    if (step.action === 'wait_for_tap') {
+      onSpawnTutorialFood?.();
+      let food = document.querySelector('.tutorial-food:not(.is-collected)');
+      if (!food) {
+        onSpawnTutorialFood?.();
+        food = document.querySelector('.tutorial-food:not(.is-collected)');
+      }
+      applySpotlight(food || target, dim);
+      positionCard(step);
+      return;
+    }
+
+    applySpotlight(target, dim, { statsFocus: step.id === 'stats' });
+    positionCard(step);
+  }
+
+  function positionCard(step) {
+    if (!card) return;
+    const b = overlayBounds();
+    const pad = Math.max(12, Math.min(20, b.width * 0.04));
+    let placement = step.cardPlacement || 'center';
+
+    if (step.id === 'speech_example') {
+      placement = 'bottom';
+      const { w: cardW, h: cardH } = measureCardSize();
+      card.classList.remove(
+        'tutorial-card--center',
+        'tutorial-card--top',
+        'tutorial-card--bottom',
+        'tutorial-card--bottom-left',
+        'tutorial-card--side'
+      );
+      card.classList.add('tutorial-card--bottom');
+      card.style.left = '50%';
+      card.style.top = `${Math.max(pad, b.height - cardH - pad)}px`;
+      card.style.transform = 'translate(-50%, 0)';
+      return;
+    }
+    card.classList.remove(
+      'tutorial-card--center',
+      'tutorial-card--top',
+      'tutorial-card--bottom',
+      'tutorial-card--bottom-left',
+      'tutorial-card--side'
+    );
+    card.style.transform = '';
+
+    let target = null;
+    if (step.id === 'stats') {
+      target = getStatsFocusElement();
+    } else if (step.targetSelector) {
+      target = document.querySelector(step.targetSelector);
+    }
+
+    if (b.width < 380 && (placement === 'side' || placement === 'bottom-left')) {
+      placement = 'bottom';
+    }
+
+    const { w: cardW, h: cardH } = measureCardSize();
+
+    if (placement === 'bottom' && target) {
+      card.classList.add('tutorial-card--bottom');
+      card.style.left = '50%';
+      card.style.top = `${Math.max(pad, b.height - cardH - pad)}px`;
+      card.style.transform = 'translate(-50%, 0)';
+      return;
+    }
+
+    if (!target || placement === 'center') {
+      card.classList.add('tutorial-card--center');
+      card.style.left = '50%';
+      card.style.top = '50%';
+      card.style.transform = 'translate(-50%, -50%)';
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    let left;
+    let top;
+    let transform = 'none';
+
+    switch (placement) {
+      case 'top':
+        card.classList.add('tutorial-card--top');
+        left = rect.left + rect.width / 2 - b.left;
+        top = rect.top - b.top - cardH - pad;
+        transform = 'translate(-50%, 0)';
+        if (top < pad) {
+          top = rect.bottom - b.top + pad;
+          card.classList.remove('tutorial-card--top');
+          card.classList.add('tutorial-card--bottom');
+        }
+        break;
+      case 'bottom':
+        card.classList.add('tutorial-card--bottom');
+        left = rect.left + rect.width / 2 - b.left;
+        top = rect.bottom - b.top + pad;
+        transform = 'translate(-50%, 0)';
+        break;
+      case 'bottom-left':
+        card.classList.add('tutorial-card--bottom-left');
+        left = rect.left + rect.width / 2 - b.left - cardW / 2;
+        top = rect.bottom - b.top + pad;
+        transform = 'none';
+        break;
+      case 'side':
+        card.classList.add('tutorial-card--side');
+        left = rect.right - b.left + pad;
+        top = rect.top - b.top + rect.height * 0.12;
+        if (left + cardW > b.width - pad) {
+          left = rect.left - b.left - cardW - pad;
+        }
+        if (left < pad) {
+          left = rect.left + rect.width / 2 - b.left;
+          top = rect.bottom - b.top + pad;
+          transform = 'translate(-50%, 0)';
+          card.classList.remove('tutorial-card--side');
+          card.classList.add('tutorial-card--bottom');
+        }
+        break;
+      default:
+        card.classList.add('tutorial-card--center');
+        left = b.width / 2;
+        top = b.height / 2;
+        transform = 'translate(-50%, -50%)';
+    }
+
+    if (transform === 'translate(-50%, -50%)') {
+      card.style.left = '50%';
+      card.style.top = '50%';
+      card.style.transform = transform;
+      return;
+    }
+
+    if (transform === 'translate(-50%, 0)') {
+      const clamped = clampInOverlay(left - cardW / 2, top, cardW, cardH, pad);
+      card.style.left = `${clamped.left + cardW / 2}px`;
+      card.style.top = `${clamped.top}px`;
+      card.style.transform = transform;
+      return;
+    }
+
+    const clamped = clampInOverlay(left, top, cardW, cardH, pad);
+    card.style.left = `${clamped.left}px`;
+    card.style.top = `${clamped.top}px`;
+    card.style.transform = transform;
+  }
+
+  function showDemoSpeech(text) {
+    if (!speechBubble || !speechDock) return;
+    document.documentElement.classList.add('is-lecture-active');
+    speechBubble.textContent = text;
+    speechBubble.classList.remove('is-hidden');
+    speechBubble.classList.add('is-visible', 'is-tutorial-demo');
+    positionSpeechBubble({
+      bubble: speechBubble,
+      dock: speechDock,
+      kolobokEl,
+      stageEl: stage,
+    });
+  }
+
+  function hideDemoSpeech() {
+    speechBubble?.classList.remove('is-visible', 'is-tutorial-demo');
+    speechBubble?.classList.add('is-hidden');
+    document.documentElement.classList.remove('is-lecture-active');
+  }
+
+  function finish() {
+    active = false;
+    cleanupUi();
+    if (resizeHandler) {
+      window.removeEventListener('resize', resizeHandler);
+      resizeHandler = null;
+    }
+    localStorage.setItem(STORAGE_KEY, 'true');
+    replySystem?.hideAll();
+    onComplete?.();
+  }
+
+  function playFinale() {
+    if (!stage) return;
+    const emojis = ['🎉', '✨', '🎊', '⭐', '🟡'];
+    const o = overlayRect();
+    const rect = kolobokEl?.getBoundingClientRect();
+    const cx = rect ? rect.left + rect.width / 2 : o.left + o.width / 2;
+    const cy = rect ? rect.top + rect.height / 3 : o.top + o.height / 2;
+
+    kolobokEl?.classList.add('is-tutorial-celebrate');
+    window.setTimeout(() => kolobokEl?.classList.remove('is-tutorial-celebrate'), 600);
+    vibrateAchievement();
+
+    emojis.forEach((emoji, i) => {
+      const angle = (i / emojis.length) * Math.PI * 2;
+      const dx = Math.cos(angle) * 72;
+      const dy = Math.sin(angle) * 72;
+      const el = document.createElement('span');
+      el.className = 'tutorial-firework';
+      el.textContent = emoji;
+      el.style.left = `${cx}px`;
+      el.style.top = `${cy}px`;
+      el.style.setProperty('--fw-x', `${dx}px`);
+      el.style.setProperty('--fw-y', `${dy}px`);
+      (overlay || document.body).appendChild(el);
+      window.setTimeout(() => el.remove(), 1200);
+    });
+  }
+
+  function showStep(index) {
+    const step = steps[index];
+    if (!step) {
+      playFinale();
+      window.setTimeout(finish, 900);
+      return;
+    }
+
+    currentStep = index;
+    renderDots();
+    if (textEl) textEl.textContent = step.text;
+    if (card) {
+      card.style.visibility = 'visible';
+      card.style.display = 'block';
+      card.removeAttribute('hidden');
+    }
+
+    replySystem?.hideAll();
+    hideDemoSpeech();
+
+    const waitTap = step.action === 'wait_for_tap';
+    if (nextBtn) {
+      nextBtn.hidden = waitTap;
+      nextBtn.style.display = waitTap ? 'none' : '';
+      nextBtn.textContent = step.buttonText || 'Дальше';
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => layoutStepSpotlight(step));
+    });
+  }
+
+  function onFoodCollected() {
+    const step = steps[currentStep];
+    if (!active || step?.action !== 'wait_for_tap') return;
+    onFoodTapped?.();
+    window.setTimeout(() => goNext(), 450);
+  }
+
+  function goNext() {
+    hideDemoSpeech();
+    if (currentStep >= steps.length - 1) {
+      playFinale();
+      window.setTimeout(finish, 900);
+      return;
+    }
+    showStep(currentStep + 1);
+  }
+
+  function start({ force = false } = {}) {
+    if (active && !force) return;
+    if (resizeHandler) {
+      window.removeEventListener('resize', resizeHandler);
+      resizeHandler = null;
+    }
+    active = false;
+    cleanupUi();
+    active = true;
+    currentStep = 0;
+    overlay?.removeAttribute('hidden');
+    overlay?.setAttribute('aria-hidden', 'false');
+    document.documentElement.classList.add('is-tutorial-active');
+    replySystem?.hideAll();
+
+    resizeHandler = () => {
+      const step = steps[currentStep];
+      if (step) layoutStepSpotlight(step);
+    };
+    window.addEventListener('resize', resizeHandler);
+
+    onStart?.();
+    showStep(0);
+  }
+
+  if (nextBtn) nextBtn.addEventListener('click', goNext);
+  if (skipBtn) {
+    skipBtn.addEventListener('click', () => {
+      hideDemoSpeech();
+      playFinale();
+      window.setTimeout(finish, 400);
+    });
+  }
+
+  return {
+    start,
+    isActive: () => active,
+    onFoodCollected,
+    skip: finish,
+  };
+}

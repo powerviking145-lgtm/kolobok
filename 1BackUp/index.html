@@ -1,0 +1,242 @@
+﻿<!DOCTYPE html>
+<html lang="ru" class="boot-loading">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Колобок</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=50">
+</head>
+<body>
+  <video
+    id="boot-video-cache"
+    class="boot-video-cache"
+    muted
+    playsinline
+    preload="auto"
+    hidden
+    aria-hidden="true"
+  ></video>
+
+  <div id="landscape-overlay" class="landscape-overlay" hidden aria-hidden="true">
+    <p class="landscape-overlay__text">Переверни телефон 📱</p>
+  </div>
+
+  <div id="app">
+    <div id="boot-loader" class="boot-loader" aria-busy="true" aria-live="polite" aria-label="Загрузка игры">
+      <div class="boot-loader__glow" aria-hidden="true"></div>
+      <div class="boot-loader__content">
+        <div class="boot-loader__orb" aria-hidden="true">
+          <img
+            class="boot-loader__logo"
+            src="assets/kolobok/logo.png"
+            width="96"
+            height="96"
+            alt=""
+            decoding="async"
+          />
+        </div>
+        <h1 class="boot-loader__title">
+          <span class="boot-loader__line">Я НЕ БУЛКА, НЕ ПИРОГ —</span>
+          <span class="boot-loader__line boot-loader__line--pepe">Я ПэПэшный</span>
+          <span class="boot-loader__line boot-loader__line--brand">Колобок</span>
+        </h1>
+        <p class="boot-loader__subtitle">ПП — Правильное Питание</p>
+        <p class="boot-loader__tip" id="boot-loader-tip">Заряжаем харизму…</p>
+      </div>
+      <div class="boot-loader__footer">
+        <div class="boot-loader__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="boot-loader-progress">
+          <div class="boot-loader__bar" id="boot-loader-bar"></div>
+        </div>
+        <p class="boot-loader__percent" id="boot-loader-percent">0%</p>
+      </div>
+    </div>
+    <div id="home-ui" class="home-ui game-screen">
+      <header class="top-panel zone--stats" id="stats-panel">
+        <div class="top-panel__row top-panel__row--head">
+          <div class="top-panel__tools">
+            <button type="button" class="icon-btn icon-btn--tutorial" id="btn-tutorial" aria-label="Повторить туториал">?</button>
+            <button type="button" class="icon-btn icon-btn--menu" id="btn-menu" aria-label="Меню">⚙</button>
+          </div>
+          <div class="top-panel__score-center top-panel__score" aria-hidden="false">
+            <div class="score-hub score-hub--capsule" id="score-hub" aria-live="polite" aria-label="Очки">
+              <span class="score-hub__star" aria-hidden="true">
+                <svg class="score-hub__star-svg" width="22" height="22" viewBox="0 0 24 24" focusable="false">
+                  <defs>
+                    <linearGradient id="score-star-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#FFD86B"/>
+                      <stop offset="100%" stop-color="#F5A623"/>
+                    </linearGradient>
+                  </defs>
+                  <path fill="url(#score-star-grad)" d="M12 2.2l2.76 5.59 6.17.9-4.47 4.35 1.06 6.15L12 16.9l-5.52 2.29 1.06-6.15L3.07 8.69l6.17-.9L12 2.2z"/>
+                </svg>
+              </span>
+              <span class="score-hub__value" id="score-total">0</span>
+            </div>
+          </div>
+          <button type="button" class="icon-btn icon-btn--exit" id="btn-exit" aria-label="Выход">✕</button>
+        </div>
+        <div class="top-panel__row top-panel__row--stats">
+          <div class="top-panel__stats" id="stats-bars"></div>
+        </div>
+      </header>
+
+      <div class="menu-sheet" id="menu-sheet" hidden aria-hidden="true">
+        <div class="menu-sheet__backdrop" id="menu-sheet-backdrop"></div>
+        <div class="menu-sheet__panel" role="dialog" aria-modal="true" aria-label="Меню">
+          <button type="button" class="menu-sheet__close" id="menu-sheet-close" aria-label="Закрыть">✕</button>
+          <ul class="menu-sheet__list" id="menu-sheet-list"></ul>
+        </div>
+      </div>
+
+      <div class="exit-modal" id="exit-modal" hidden aria-hidden="true">
+        <div class="exit-modal__backdrop" id="exit-modal-backdrop"></div>
+        <div class="exit-modal__card" role="dialog" aria-modal="true" aria-labelledby="exit-modal-title">
+          <h2 class="exit-modal__title" id="exit-modal-title">Выйти из игры?</h2>
+          <p class="exit-modal__text" id="exit-modal-text">Прогресс сохранён ✅<br>Колобок будет ждать 🥺</p>
+          <div class="exit-modal__actions">
+            <button type="button" class="btn btn--secondary" id="exit-modal-stay">Остаться</button>
+            <button type="button" class="btn btn--primary" id="exit-modal-leave">Выйти</button>
+          </div>
+        </div>
+      </div>
+
+      <main class="zone zone--kolobok kolobok-stage">
+        <div class="stage-hero">
+        <div class="particles" id="home-particles" aria-hidden="true"></div>
+
+        <button type="button" class="kolobok kolobok--normal" id="kolobok" aria-label="Тапай колобка">
+          <div class="kolobok-shadow" aria-hidden="true"></div>
+          <div class="kolobok__breathe">
+            <span class="kolobok__videos" aria-hidden="true">
+              <video
+                class="kolobok__video is-visible is-front"
+                id="kolobok-video-a"
+                muted
+                playsinline
+                disablepictureinpicture
+                preload="auto"
+              ></video>
+              <video
+                class="kolobok__video"
+                id="kolobok-video-b"
+                muted
+                playsinline
+                disablepictureinpicture
+                preload="auto"
+              ></video>
+            </span>
+          </div>
+        </button>
+
+        <div class="speech-dock speech-dock--side" id="idle-chat-dock">
+          <div class="idle-chat-bubble speech-bubble is-hidden" id="idle-chat-bubble" role="status" aria-live="polite"></div>
+          <div class="speech-thought" aria-hidden="true">
+            <span class="speech-thought__dot speech-thought__dot--1"></span>
+            <span class="speech-thought__dot speech-thought__dot--2"></span>
+            <span class="speech-thought__dot speech-thought__dot--3"></span>
+          </div>
+        </div>
+
+        <div class="action-prompt" id="action-prompt" hidden aria-hidden="true">
+          <p class="action-prompt__text" id="action-prompt-text"></p>
+        </div>
+
+        <div class="floating-reactions" id="floating-reactions" aria-hidden="true"></div>
+
+        <div id="purchase-layer" class="unpacking-flow" hidden aria-hidden="true">
+          <div class="unpack-step unpack-step--1" data-unpack-step="1" hidden>
+            <div class="unpack-bag" id="unpack-bag" aria-hidden="true">🛍️</div>
+            <div class="unpack-confetti" id="unpack-confetti" aria-hidden="true"></div>
+          </div>
+          <div class="unpack-step unpack-step--2" data-unpack-step="2" hidden>
+            <article class="unpack-receipt" id="unpack-receipt">
+              <p class="unpack-receipt__store" id="unpack-receipt-store">Чек · Пятёрочка / Перекрёсток / Чижик</p>
+              <p class="unpack-receipt__dash">- - - - - - - - - - -</p>
+              <ul class="unpack-receipt__lines" id="unpack-receipt-lines"></ul>
+              <p class="unpack-receipt__dash unpack-receipt__dash--2" id="unpack-receipt-divider">- - - - - - - - - - -</p>
+              <p class="unpack-receipt__total" id="unpack-receipt-total"></p>
+            </article>
+            <button type="button" class="btn btn--primary unpack-receipt__btn" id="unpack-receipt-next">Окей, разбираем дальше →</button>
+          </div>
+          <div class="unpack-step unpack-step--3" data-unpack-step="3" hidden>
+            <article class="unpack-receipt unpack-receipt--mini" id="unpack-receipt-mini"></article>
+            <div class="unpack-orbit" id="unpack-orbit" aria-hidden="true"></div>
+            <button type="button" class="btn btn--primary unpack-fridge__btn" id="unpack-fridge-btn">Закинуть в холодильник 🧊</button>
+          </div>
+          <div class="unpack-step unpack-step--4" data-unpack-step="4" hidden>
+            <div class="unpack-stat-floats" id="unpack-stat-floats" aria-hidden="true"></div>
+            <button type="button" class="btn btn--primary unpack-home__btn" id="unpack-home-btn">На главную ←</button>
+          </div>
+        </div>
+        <div class="home-spawns" id="home-spawns" aria-hidden="false"></div>
+        <div class="tap-floats" id="tap-floats" aria-hidden="true"></div>
+        </div>
+
+        <article class="nutrition-tip" id="nutrition-tip" hidden aria-hidden="true">
+          <span class="nutrition-tip__icon" aria-hidden="true">💡</span>
+          <div class="nutrition-tip__body">
+            <p class="nutrition-tip__label">Совет от Колобка</p>
+            <p class="nutrition-tip__text" id="nutrition-tip-text"></p>
+            <div class="nutrition-tip__actions">
+              <button type="button" class="btn btn--mini btn--primary" id="nutrition-tip-ok">Понятно 👌</button>
+            </div>
+          </div>
+        </article>
+
+        <footer class="zone zone--buttons actions" id="footer-buttons">
+          <button type="button" class="btn btn--primary btn-primary" id="btn-receipt">
+            <span class="btn-icon" aria-hidden="true">🛒</span>
+            <span class="btn__text">Распаковать покупки</span>
+          </button>
+          <button type="button" class="btn btn--secondary btn-secondary" id="btn-run">
+            <span class="btn-icon" aria-hidden="true">🔥</span>
+            <span class="btn__text">Сжечь калории</span>
+          </button>
+        </footer>
+      </main>
+
+      <div class="tutorial-overlay" id="tutorial-overlay" hidden aria-hidden="true">
+        <div class="tutorial-spotlight" id="tutorial-spotlight" hidden></div>
+        <div class="tutorial-card" id="tutorial-card">
+          <p class="tutorial-card__text" id="tutorial-text"></p>
+          <button type="button" class="btn btn--primary tutorial-card__next" id="tutorial-next">Дальше</button>
+          <div class="tutorial-dots" id="tutorial-dots" aria-hidden="true"></div>
+          <button type="button" class="tutorial-skip" id="tutorial-skip">Пропустить туториал</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="runner-layer" class="runner-layer" hidden aria-hidden="true">
+      <header class="runner-header" id="runner-stats" hidden>
+        <div class="runner-stats__grid" id="runner-stats-bars"></div>
+        <div class="runner-meta" id="runner-hud">
+          <span class="runner-meta__distance" id="runner-distance">0 м</span>
+          <span class="runner-meta__score">⭐ <span id="runner-score">0</span></span>
+          <button type="button" class="runner-meta__surrender" id="runner-surrender">Сдаться</button>
+        </div>
+        <span class="runner-toast" id="runner-toast" hidden></span>
+      </header>
+      <canvas id="runner-canvas" class="runner-canvas"></canvas>
+      <div class="runner-results" id="runner-results" hidden>
+        <h2 class="runner-results__title" id="runner-result-title">Попался!</h2>
+        <p class="runner-results__line">Дистанция: <strong id="runner-result-distance">0</strong> м</p>
+        <p class="runner-results__line">Очки: <strong id="runner-result-score">0</strong></p>
+        <p class="runner-results__line">Рекорд очков: <strong id="runner-result-best">0</strong></p>
+        <p class="runner-results__record" id="runner-result-record" hidden>🎉 Новый рекорд!</p>
+        <div class="runner-results__actions">
+          <button type="button" class="btn btn--secondary" id="runner-btn-again">🏃 Заново</button>
+          <button type="button" class="btn btn--primary" id="runner-btn-home">На главную</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js?v=72"></script>
+</body>
+</html>
