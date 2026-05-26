@@ -2769,6 +2769,53 @@ html.is-onboarding-active .tutorial-overlay {
   pointer-events: none;
 }
 
+.food-photo-preview {
+  width: 100%;
+  max-height: min(28dvh, 9rem);
+  object-fit: cover;
+  border-radius: 0.55rem;
+  margin-bottom: 0.35rem;
+}
+
+.food-photo-preview[hidden] {
+  display: none;
+}
+
+.food-photo-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: min(32dvh, 11rem);
+  overflow-y: auto;
+}
+
+.food-photo-choice {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.food-photo-result__hero {
+  font-size: clamp(2.2rem, 12vw, 3rem);
+  line-height: 1;
+  text-align: center;
+}
+
+.food-photo-result__name {
+  font-size: clamp(0.95rem, 4.2vw, 1.05rem);
+  font-weight: 800;
+  text-align: center;
+}
+
+.food-photo-modal {
+  z-index: 215;
+}
+
+html.is-food-photo-active #home-spawns,
+html.is-food-photo-active #footer-buttons {
+  pointer-events: none;
+}
+
 .receipt-scan-modal {
   position: absolute;
   inset: 0;

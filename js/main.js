@@ -15,7 +15,8 @@ import {
 } from './kolobok.js';
 import { initViewport } from './viewport.js';
 import { createUnpackingFlow } from './unpackingFlow.js';
-import { getCriticalWarnPhrase } from './phrases.js';
+import { createFoodPhotoFeed } from './foodPhotoFeed.js';
+import { getCriticalWarnPhrase, setPhraseNameResolver } from './phrases.js';
 import { positionSpeechBubble } from './speechPosition.js';
 import { createRunner } from './runner/runner.js';
 import { createTapFx } from './tapFx.js';
@@ -77,6 +78,7 @@ let decayTimerId = null;
 let phraseTimerId = null;
 let autosaveTimerId = null;
 let purchase = null;
+let foodPhotoFeed = null;
 let runner = null;
 let tapFx = null;
 let homeSpawns = null;
@@ -356,7 +358,10 @@ function updateKolobokMood(mood) {
 
 function setReceiptButtonDefault() {
   if (!ui.btnReceipt) return;
-  ui.btnReceipt.innerHTML = `<span class="btn-icon" aria-hidden="true">${CONFIG.ui.receiptButtonIcon}</span><span class="btn__text">${CONFIG.ui.unpackButton}</span>`;
+  const fp = CONFIG.foodPhoto ?? {};
+  const icon = fp.enabled ? (fp.buttonIcon ?? '📸') : (CONFIG.ui.receiptButtonIcon ?? '🍔');
+  const text = fp.enabled ? (fp.buttonText ?? CONFIG.ui.unpackButton) : CONFIG.ui.unpackButton;
+  ui.btnReceipt.innerHTML = `<span class="btn-icon" aria-hidden="true">${icon}</span><span class="btn__text">${text}</span>`;
 }
 
 function showHomeToast(text) {
@@ -1013,8 +1018,12 @@ function isHomeBlocked() {
 }
 
 /** Чек реально на экране (не залипший флаг flowBusy). */
+function isFoodPhotoFeedActive() {
+  return foodPhotoFeed?.isActive?.() ?? false;
+}
+
 function isFeedFlowOnScreen() {
-  return isPurchaseLayerVisible();
+  return isPurchaseLayerVisible() || isFoodPhotoFeedActive();
 }
 
 function isSpawnBlocked() {
@@ -1361,6 +1370,12 @@ function bindEvents() {
       return;
     }
 
+    if (CONFIG.foodPhoto?.enabled) {
+      homeSpawns?.stop();
+      foodPhotoFeed?.open();
+      return;
+    }
+
     const stats = gameState.get();
     if (!canRequestReceipt(stats)) {
       showPhrase(getReceiptBlockedPhrase(), true);
@@ -1523,6 +1538,61 @@ function initRunner() {
         updateScoreHub();
         updateKolobokMood(currentMood);
         showPhrase(phrase, true);
+      },
+    },
+  });
+}
+
+function initFoodPhotoFeed() {
+  const hintEl = document.getElementById('food-photo-confirm-hint');
+  if (hintEl && CONFIG.foodPhoto?.pickHint) {
+    hintEl.textContent = CONFIG.foodPhoto.pickHint;
+  }
+
+  foodPhotoFeed = createFoodPhotoFeed({
+    callbacks: {
+      onStart: () => {
+        pauseGameTimers();
+        homeSpawns?.stop();
+        replySystem?.hideAll();
+      },
+      onPhrase: (text) => {
+        showPhrase(text, true, {
+          autoHide: true,
+          hideMs: CONFIG.foodPhoto?.phraseHideMs ?? 12000,
+        });
+      },
+      onStatsApplied: () => {
+        const stats = gameState.get();
+        currentMood = getMood(stats);
+        updateStatsBars(stats);
+        updateScoreHub(true);
+        updateKolobokMood(currentMood);
+        CONFIG.statBars.forEach((bar) => pulseStat(bar.key));
+      },
+      onComplete: () => {
+        setLastFeedTimestamp();
+        const stats = gameState.get();
+        currentMood = getMood(stats);
+        updateStatsBars(stats);
+        updateKolobokMood(currentMood);
+        gameState.save();
+        stopFeedCooldownTicker();
+        updateReceiptButton(stats);
+        ensureFeedCooldownTicker();
+        resumeHomeAfterFeed([]);
+        resumeHomeVideo();
+        refreshPhrase(true);
+        positionSpeechBubble({
+          bubble: document.getElementById('idle-chat-bubble'),
+          dock: document.getElementById('idle-chat-dock'),
+          kolobokEl: ui.kolobok,
+          stageEl: ui.kolobokStage,
+        });
+      },
+      onClose: () => {
+        resumeTimers();
+        if (!isOnCooldown()) kickHomeSpawns();
       },
     },
   });
@@ -1860,12 +1930,14 @@ export async function launchGame() {
       footer: ui.footer,
       stage: ui.kolobokStage?.querySelector('.stage-hero') || ui.kolobokStage,
     });
+    initFoodPhotoFeed();
     initPurchase();
     initRunner();
 
     disposeParticles = initHomeParticles(ui.homeParticles);
 
     gameState.load();
+    setPhraseNameResolver(() => gameState.getKolobokName());
 
     renderUI(false);
     bindEvents();

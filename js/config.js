@@ -33,6 +33,13 @@ export const CONFIG = {
     devTelegramId: 999999001,
   },
 
+  phrases: {
+    /** Если в фразе нет {name} — с этой вероятностью добавить «Имя, …» */
+    nameInjectChance: 0.45,
+    /** При выборе реплики предпочитать строки с {name} */
+    namedPoolPreferChance: 0.8,
+  },
+
   greeting: {
     enabled: true,
     /** Задержка после появления главного экрана */
@@ -666,6 +673,44 @@ export const CONFIG = {
     { id: 'eggs', emoji: '🥚', name: 'Яйца', price: 89, effects: { hunger: 10 } },
   ],
 
+  /** Кормёжка фото еды — основной флоу кнопки «Кормить» */
+  foodPhoto: {
+    enabled: true,
+    /** false = без ключа Gemini фото-фид не стартует (не рандом) */
+    fallbackToMock: false,
+    analyzeMs: 800,
+    pickCount: 3,
+    gemini: {
+      enabled: true,
+      /** Google AI Studio → API key. Не коммить! Или secrets.local.js / window.__KOLOBOK_GEMINI_KEY */
+      apiKey: 'AIzaSyC7uUhzvZ8mTCWhQxYI9ocpS8zsWckx2GY',
+      model: 'gemini-2.0-flash',
+      timeoutMs: 28000,
+      maxImageSide: 1024,
+      jpegQuality: 0.82,
+      temperature: 0.35,
+      maxOutputTokens: 280,
+      /** Выше — сразу кормим без выбора из 3 кнопок */
+      skipConfirmMinConfidence: 0.82,
+    },
+    moodBonus: 2,
+    tapScorePoints: 3,
+    titlePick: 'Сфоткай еду',
+    titleAnalyze: 'Смотрю, что ты принёс…',
+    titleConfirm: 'Угадал? Тапни, если не то',
+    titleResult: 'Зашло!',
+    titleError: 'Не разобрал фото',
+    pickHint: 'Колобок почти уверен — поправь, если промахнулся.',
+    phraseHideMs: 12000,
+    buttonText: 'Сфоткать еду',
+    buttonIcon: '📸',
+    effectsByKind: {
+      good: { hunger: 14, thirst: 8, health: 10, mood: 6 },
+      neutral: { hunger: 12, mood: 10 },
+      bad: { hunger: 16, mood: 14, health: -4 },
+    },
+  },
+
   /** Скан QR / ФНС — выключен до этапа «фото + ИИ» */
   receiptScan: {
     enabled: false,
@@ -707,12 +752,12 @@ export const CONFIG = {
 
   ui: {
     receiptStoreHeading: 'Чек · Пятёрочка / Перекрёсток / Чижик',
-    unpackButton: 'Кормить',
+    unpackButton: 'Сфоткать еду',
+    receiptButtonIcon: '📸',
     shopButton: 'Магазин',
     openBagButton: 'Открыть пакет 📦',
     runButton: 'Сжечь калории',
     runButtonIcon: '🔥',
-    receiptButtonIcon: '🍔',
     shopButtonIcon: '🛍',
     speechHideIdleMs: 6000,
     hapticTapMs: 10,
@@ -720,9 +765,9 @@ export const CONFIG = {
     tapMoodBonus: 1,
     statLowPercent: 30,
     receiptBlockedPhrases: [
-      'Распаковка только когда хоть один стат в красной зоне, бро.',
-      'Всё норм — в магазин не ходили. Отдохни.',
-      'Показатели не в жопе — покупки подождут.',
+      '{name}, распаковка только когда стат в красной зоне.',
+      '{name}, всё норм — в магазин не ходили. Отдохни.',
+      'Показатели не в жопе, {name}. Покупки подождут.',
     ],
     stubRunPhrases: [
       'Бежать хочешь? Раннер на подходе. Пока отдыхай.',

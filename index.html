@@ -244,6 +244,45 @@
       </div>
 
       <input type="file" id="receipt-scan-file" accept="image/*" hidden aria-hidden="true">
+      <input type="file" id="food-photo-file" accept="image/*" hidden aria-hidden="true">
+
+      <div class="receipt-scan-modal food-photo-modal" id="food-photo-modal" hidden aria-hidden="true">
+        <div class="receipt-scan-modal__backdrop" id="food-photo-backdrop"></div>
+        <div class="receipt-scan-modal__card" role="dialog" aria-modal="true" aria-labelledby="food-photo-title">
+          <button type="button" class="receipt-scan-modal__close" id="food-photo-close" aria-label="Закрыть">✕</button>
+          <h2 class="receipt-scan-modal__title" id="food-photo-title">Сфоткай еду</h2>
+          <img class="food-photo-preview" id="food-photo-preview-img" alt="" hidden decoding="async" />
+
+          <div class="receipt-scan-modal__state" data-food-photo-state="pick">
+            <p class="receipt-scan-modal__pick-text">Сфоткай тарелку или продукт — колобок прокомментирует и поест.</p>
+            <div class="receipt-scan-modal__pick-actions">
+              <button type="button" class="btn btn--primary" id="food-photo-camera">📸 Снять</button>
+              <button type="button" class="btn btn--secondary" id="food-photo-gallery">🖼 Из галереи</button>
+            </div>
+          </div>
+
+          <div class="receipt-scan-modal__state" data-food-photo-state="loading" hidden>
+            <p class="receipt-scan-modal__loading" id="food-photo-loading-text">Смотрю, что ты принёс…</p>
+          </div>
+
+          <div class="receipt-scan-modal__state" data-food-photo-state="confirm" hidden>
+            <p class="receipt-scan-modal__hint" id="food-photo-confirm-hint">Угадал? Тапни, если не то</p>
+            <div class="food-photo-choices" id="food-photo-choices"></div>
+          </div>
+
+          <div class="receipt-scan-modal__state" data-food-photo-state="result" hidden>
+            <p class="food-photo-result__hero" id="food-photo-result-emoji" aria-hidden="true"></p>
+            <p class="food-photo-result__name" id="food-photo-result-name"></p>
+            <p class="receipt-scan-modal__meta" id="food-photo-result-phrase"></p>
+            <button type="button" class="btn btn--primary receipt-scan-modal__close-btn" id="food-photo-done">Покормил ✅</button>
+          </div>
+
+          <div class="receipt-scan-modal__state" data-food-photo-state="error" hidden>
+            <p class="receipt-scan-modal__error" id="food-photo-error-text"></p>
+            <button type="button" class="btn btn--primary receipt-scan-modal__close-btn" id="food-photo-error-close">Закрыть</button>
+          </div>
+        </div>
+      </div>
 
       <div class="receipt-scan-modal" id="receipt-scan-modal" hidden aria-hidden="true">
 
@@ -894,6 +933,7 @@
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="js/secrets.local.js"></script>
   <script>
     (async function () {
       var TG_SLOW_TIPS = [
@@ -985,7 +1025,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '119';
+      var BUILD = '123';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

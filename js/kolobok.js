@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { phrases, getCantRunPhrase } from './phrases.js';
+import { phrases, getCantRunPhrase, pickNamedFrom, formatPhrase } from './phrases.js';
 
 const MOOD_PRIORITY = ['sleepy', 'overstuffed', 'sick', 'angry', 'hungry', 'thirsty', 'happy', 'normal'];
 
@@ -42,22 +42,21 @@ export function isBurnRunReady(stats) {
 
 export function pickBurnRunPhrase(lastPhrase = '') {
   const list = phrases.burnRun || phrases.overstuffed;
-  return pickRandom(list, lastPhrase);
+  return pickNamedFrom(list, lastPhrase);
 }
 
 export function pickGreetingPhrase(name) {
   const templates = CONFIG.greeting?.templates ?? [];
   if (!templates.length || !name) return null;
-  const template = pickRandom(templates);
-  return template.replace(/\{name\}/g, name);
+  return formatPhrase(pickRandom(templates), name);
 }
 
 export function pickPhrase(mood, lastPhrase = '') {
   if (mood === 'normal') {
     const combined = [...phrases.normal, ...phrases.idle];
-    return pickRandom(combined, lastPhrase);
+    return pickNamedFrom(combined, lastPhrase);
   }
-  return pickRandom(phrases[mood] || phrases.normal, lastPhrase);
+  return pickNamedFrom(phrases[mood] || phrases.normal, lastPhrase);
 }
 
 export function getMoodClass(mood) {
@@ -90,5 +89,5 @@ export function canRequestReceipt(stats) {
 
 export function getReceiptBlockedPhrase() {
   const list = CONFIG.ui.receiptBlockedPhrases || phrases.normal;
-  return pickRandom(list);
+  return pickNamedFrom(list);
 }
