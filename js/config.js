@@ -1,4 +1,8 @@
-import { BUILD } from './build.js';
+import { BUILD as BUILD_FILE } from './build.js';
+
+/** Актуальная сборка: сначала из boot (fetch build.js), иначе из файла. */
+export const BUILD =
+  (typeof window !== 'undefined' && window.__KOLOBOK_BUILD) || BUILD_FILE;
 
 export const CONFIG = {
   build: BUILD,

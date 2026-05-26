@@ -14,9 +14,13 @@
 
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <title>Колобок</title>
 
-  <link rel="stylesheet" href="style.css?v=112" id="app-stylesheet">
+  <link rel="stylesheet" href="style.css" id="app-stylesheet">
   <link rel="preload" href="assets/kolobok/logo.png" as="image">
   <style>
     html, body { margin: 0; width: 100%; height: 100%; min-height: 100dvh; background: #1a1208; overflow: hidden; }
@@ -892,9 +896,7 @@
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    (function () {
-      var BUILD = '112';
-
+    (async function () {
       function appRoot() {
         var path = location.pathname || '/';
         var idx = path.indexOf('/kolobok');
@@ -930,6 +932,30 @@
       var base = document.createElement('base');
       base.href = root;
       document.head.insertBefore(base, document.head.firstChild);
+
+      var BUILD = '114';
+      try {
+        var buildRes = await fetch(root + 'js/build.js?t=' + Date.now(), { cache: 'no-store' });
+        var buildText = await buildRes.text();
+        var buildMatch = buildText.match(/BUILD\s*=\s*['"](\d+)['"]/);
+        if (buildMatch) BUILD = buildMatch[1];
+      } catch (e) {}
+
+      window.__KOLOBOK_BUILD = BUILD;
+
+      var lastBuild = sessionStorage.getItem('kolobok-last-build');
+      if (lastBuild && lastBuild !== BUILD) {
+        sessionStorage.setItem('kolobok-last-build', BUILD);
+        location.reload();
+        return;
+      }
+      sessionStorage.setItem('kolobok-last-build', BUILD);
+
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register(root + 'sw.js?v=' + BUILD, { scope: root });
+        } catch (e) {}
+      }
 
       var link = document.getElementById('app-stylesheet');
       if (link) link.href = root + 'style.css?v=' + BUILD;
@@ -987,13 +1013,13 @@
       if (isTg) {
         window.__kolobokTgBoot = true;
         setBoot(10);
-        import(root + 'js/start.js')
+        import(root + 'js/start.js?v=' + BUILD)
           .then(function (m) {
             return m.runInitialBoot();
           })
           .then(function () {
             setBoot(94);
-            return import(root + 'js/main.js');
+            return import(root + 'js/main.js?v=' + BUILD);
           })
           .then(function (m) {
             onMainLoaded();
@@ -1001,7 +1027,7 @@
           })
           .catch(onFail);
       } else {
-        import(root + 'js/entry.js').catch(onFail);
+        import(root + 'js/entry.js?v=' + BUILD).catch(onFail);
       }
     })();
   </script>

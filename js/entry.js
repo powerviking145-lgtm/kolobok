@@ -1,4 +1,4 @@
-import { BUILD } from './build.js';
+const BUILD = window.__KOLOBOK_BUILD || '114';
 
 const stylesheet = document.getElementById('app-stylesheet');
 if (stylesheet) {
@@ -32,7 +32,7 @@ async function startApp() {
   if (typeof window.__kolobokHideFatal === 'function') {
     window.__kolobokHideFatal();
   }
-  await import('./main.js');
+  await import(`./main.js?v=${BUILD}`);
 }
 
 startApp().catch((err) => {

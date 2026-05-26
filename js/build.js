@@ -1,5 +1,5 @@
 /**
  * Версия сборки для сброса кэша (GitHub Pages / Telegram).
- * При каждом релизе на GitHub — увеличь на 1.
+ * При каждом релизе — увеличь на 1. Ссылку в BotFather менять не нужно.
  */
-export const BUILD = '112';
+export const BUILD = '114';
