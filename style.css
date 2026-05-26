@@ -2811,6 +2811,25 @@ html.is-onboarding-active .tutorial-overlay {
   z-index: 215;
 }
 
+.food-photo-file-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0;
+}
+
+.food-photo-file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+
 html.is-food-photo-active #home-spawns,
 html.is-food-photo-active #footer-buttons {
   pointer-events: none;

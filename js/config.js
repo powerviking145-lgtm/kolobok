@@ -684,7 +684,7 @@ export const CONFIG = {
       enabled: true,
       /** Google AI Studio → API key. Не коммить! Или secrets.local.js / window.__KOLOBOK_GEMINI_KEY */
       apiKey: 'AIzaSyC7uUhzvZ8mTCWhQxYI9ocpS8zsWckx2GY',
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.0-flash-lite',
       timeoutMs: 28000,
       maxImageSide: 1024,
       jpegQuality: 0.82,

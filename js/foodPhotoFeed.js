@@ -71,9 +71,22 @@ async function recognizeFood(file) {
   );
 }
 
+function formatFeedError(message) {
+  const msg = String(message || '');
+  if (msg.includes('429') || /quota|rate limit|too many/i.test(msg)) {
+    return 'Лимит Gemini (бесплатный тариф). Подожди 1–2 мин или включи биллинг в Google AI Studio.';
+  }
+  if (msg.includes('gemini-timeout')) {
+    return 'Долго отвечает. Попробуй ещё раз или другое фото.';
+  }
+  if (msg.includes('403')) {
+    return 'Ключ Gemini не принят. Проверь API key в Google AI Studio.';
+  }
+  return msg.length > 220 ? `${msg.slice(0, 220)}…` : msg;
+}
+
 export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   const modal = document.getElementById('food-photo-modal');
-  const fileInput = document.getElementById('food-photo-file');
   const previewImg = document.getElementById('food-photo-preview-img');
   const choicesEl = document.getElementById('food-photo-choices');
   const resultEmoji = document.getElementById('food-photo-result-emoji');
@@ -146,7 +159,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   }
 
   function showError(message) {
-    if (errorText) errorText.textContent = message;
+    if (errorText) errorText.textContent = formatFeedError(message);
     showState('error');
   }
 
@@ -237,12 +250,6 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     }
   }
 
-  function openPicker() {
-    if (!fileInput) return;
-    fileInput.value = '';
-    fileInput.click();
-  }
-
   function open() {
     if (active) return;
     setOpen(true);
@@ -260,30 +267,23 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
 
     const closeBtn = modal.querySelector('#food-photo-close');
     const backdrop = modal.querySelector('#food-photo-backdrop');
-    const btnCamera = modal.querySelector('#food-photo-camera');
-    const btnGallery = modal.querySelector('#food-photo-gallery');
     const btnDone = modal.querySelector('#food-photo-done');
     const btnErrorClose = modal.querySelector('#food-photo-error-close');
 
     closeBtn?.addEventListener('click', close);
     backdrop?.addEventListener('click', close);
-    btnCamera?.addEventListener('click', () => {
-      fileInput?.setAttribute('capture', 'environment');
-      openPicker();
-    });
-    btnGallery?.addEventListener('click', () => {
-      fileInput?.removeAttribute('capture');
-      openPicker();
-    });
     btnDone?.addEventListener('click', () => {
       close();
       callbacks.onComplete?.();
     });
     btnErrorClose?.addEventListener('click', close);
 
-    fileInput?.addEventListener('change', () => {
-      const file = fileInput.files?.[0];
-      if (file) onFileSelected(file);
+    modal.querySelectorAll('.food-photo-file-input').forEach((input) => {
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        input.value = '';
+        if (file) onFileSelected(file);
+      });
     });
   }
 

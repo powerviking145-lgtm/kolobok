@@ -462,10 +462,16 @@ function updateReceiptButton(stats) {
   ui.btnReceipt.classList.remove('btn--feed-cooldown');
   setReceiptButtonDefault();
 
-  const allowed = canRequestReceipt(stats);
-  ui.btnReceipt.disabled = !allowed;
-  ui.btnReceipt.classList.toggle('btn--disabled', !allowed);
-  ui.btnReceipt.setAttribute('aria-disabled', String(!allowed));
+  if (CONFIG.foodPhoto?.enabled) {
+    ui.btnReceipt.disabled = false;
+    ui.btnReceipt.classList.remove('btn--disabled');
+    ui.btnReceipt.setAttribute('aria-disabled', 'false');
+  } else {
+    const allowed = canRequestReceipt(stats);
+    ui.btnReceipt.disabled = !allowed;
+    ui.btnReceipt.classList.toggle('btn--disabled', !allowed);
+    ui.btnReceipt.setAttribute('aria-disabled', String(!allowed));
+  }
 
   if (cooldownJustEnded) {
     ensureHomeScreenAwake({ refreshSpeech: true });

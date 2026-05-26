@@ -244,8 +244,6 @@
       </div>
 
       <input type="file" id="receipt-scan-file" accept="image/*" hidden aria-hidden="true">
-      <input type="file" id="food-photo-file" accept="image/*" hidden aria-hidden="true">
-
       <div class="receipt-scan-modal food-photo-modal" id="food-photo-modal" hidden aria-hidden="true">
         <div class="receipt-scan-modal__backdrop" id="food-photo-backdrop"></div>
         <div class="receipt-scan-modal__card" role="dialog" aria-modal="true" aria-labelledby="food-photo-title">
@@ -255,9 +253,15 @@
 
           <div class="receipt-scan-modal__state" data-food-photo-state="pick">
             <p class="receipt-scan-modal__pick-text">Сфоткай тарелку или продукт — колобок прокомментирует и поест.</p>
-            <div class="receipt-scan-modal__pick-actions">
-              <button type="button" class="btn btn--primary" id="food-photo-camera">📸 Снять</button>
-              <button type="button" class="btn btn--secondary" id="food-photo-gallery">🖼 Из галереи</button>
+            <div class="receipt-scan-modal__pick-actions food-photo-pick-actions">
+              <label class="btn btn--primary food-photo-file-label" id="food-photo-camera">
+                📸 Снять
+                <input type="file" class="food-photo-file-input" accept="image/*" capture="environment" />
+              </label>
+              <label class="btn btn--secondary food-photo-file-label" id="food-photo-gallery">
+                🖼 Из галереи
+                <input type="file" class="food-photo-file-input" accept="image/*" />
+              </label>
             </div>
           </div>
 
@@ -1025,7 +1029,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '124';
+      var BUILD = '125';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());
