@@ -202,12 +202,22 @@ function extractJsonObject(text) {
   const body = fenced ? fenced[1].trim() : raw;
   const start = body.indexOf('{');
   const end = body.lastIndexOf('}');
-  if (start === -1 || end <= start) return null;
-  try {
-    return JSON.parse(body.slice(start, end + 1));
-  } catch {
-    return null;
+  if (start !== -1 && end > start) {
+    try {
+      return JSON.parse(body.slice(start, end + 1));
+    } catch {
+      /* обрезанный JSON — fallback ниже */
+    }
   }
+  const idM = body.match(/"id"\s*:\s*"([^"]+)"/i);
+  if (!idM) return null;
+  const commentM = body.match(/"comment"\s*:\s*"((?:[^"\\]|\\.)*)"/i);
+  const confM = body.match(/"confidence"\s*:\s*([\d.]+)/i);
+  return {
+    id: idM[1],
+    comment: commentM ? commentM[1].replace(/\\"/g, '"') : '',
+    confidence: confM ? Number(confM[1]) : 0.7,
+  };
 }
 
 function findFoodById(id) {
@@ -239,6 +249,9 @@ const GEMINI_KEY_LEAKED =
 
 const GEMINI_LOCATION =
   'Gemini из твоего региона напрямую недоступен. Нужен прокси Firebase — см. FOOD_PHOTO.md (раздел «Прокси»).';
+
+const GEMINI_BUSY =
+  'Сервер Gemini перегружен. Подожди 30–60 сек и сфоткай снова.';
 
 function isGeminiApiDisabled(_res, errText) {
   const msg = String(errText || '').toLowerCase();
@@ -344,7 +357,7 @@ function defaultModelList(c) {
   );
 }
 
-async function recognizeViaProxy({ prompt, base64, mimeType, models, c }) {
+async function recognizeViaProxyOnce({ prompt, base64, mimeType, models, c }) {
   const res = await withTimeout(
     fetchWithRetry(
       String(c.proxyUrl).trim(),
@@ -368,17 +381,56 @@ async function recognizeViaProxy({ prompt, base64, mimeType, models, c }) {
   const data = await res.json().catch(() => ({}));
   const errMsg = String(data.error || '');
   if (!res.ok || !data.ok) {
+    if (
+      res.status === 503 ||
+      /high_demand|high demand|unavailable/i.test(errMsg)
+    ) {
+      throw new Error(GEMINI_BUSY);
+    }
     if (/location is not supported/i.test(errMsg)) {
       throw new Error(GEMINI_LOCATION);
     }
-    if (/API_KEY_INVALID|api key not valid/i.test(errMsg)) {
+    if (/API key expired|API_KEY_INVALID|api key not valid/i.test(errMsg)) {
       throw new Error(
-        'Ключ Gemini на сервере неверный — обнови GEMINI_API_KEY в Firebase (AI Studio)'
+        'Ключ Gemini просрочен или отозван — создай новый в AI Studio → Firebase secrets:set GEMINI_API_KEY'
       );
     }
-    throw new Error(errMsg || `Прокси Gemini: HTTP ${res.status}`);
+    if (/API_KEY_HTTP_REFERRER_BLOCKED|referer/i.test(errMsg)) {
+      throw new Error(
+        'Ключ Gemini с ограничением «сайты» — в Google Cloud сними ограничения ключа (None) или создай новый в AI Studio'
+      );
+    }
+    if (/CONSUMER_SUSPENDED|has been suspended/i.test(errMsg)) {
+      throw new Error(
+        'Ключ Gemini заблокирован Google (CONSUMER_SUSPENDED). Удали его в AI Studio, создай новый → только Firebase secrets:set'
+      );
+    }
+    if (/PERMISSION_DENIED|API has not been enabled|billing/i.test(errMsg)) {
+      throw new Error(
+        'Gemini API не включён или нет биллинга на проекте kolobok-6032e — Google Cloud → APIs → Generative Language API'
+      );
+    }
+    const detail = errMsg ? errMsg.slice(0, 280) : `HTTP ${res.status}`;
+    throw new Error(`Прокси Gemini ${res.status}: ${detail}`);
   }
   return { text: data.text, model: data.model || models[0] };
+}
+
+async function recognizeViaProxy(args) {
+  const c = args.c;
+  const tries = (c.proxyRetries ?? 2) + 1;
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await recognizeViaProxyOnce(args);
+    } catch (err) {
+      lastErr = err;
+      const busy = String(err?.message || '') === GEMINI_BUSY;
+      if (!busy || i === tries - 1) throw err;
+      await sleep(c.proxyRetryMs ?? 3500);
+    }
+  }
+  throw lastErr;
 }
 
 /**
@@ -402,14 +454,28 @@ export async function recognizeFoodWithGemini(file) {
 
   if (proxyUrl) {
     const models = defaultModelList(c);
-    const { text, model } = await recognizeViaProxy({
-      prompt,
-      base64,
-      mimeType,
-      models,
-      c,
-    });
-    return finishRecognition(text, model);
+    let lastErr;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const { text, model } = await recognizeViaProxy({
+          prompt,
+          base64,
+          mimeType,
+          models,
+          c,
+        });
+        return finishRecognition(text, model);
+      } catch (err) {
+        lastErr = err;
+        const msg = String(err?.message || '');
+        if (msg.includes('не разобрал ответ') && attempt === 0) {
+          await sleep(800);
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastErr;
   }
 
   const modelCandidates = await resolveModelCandidates(apiKey);
@@ -437,7 +503,8 @@ export async function recognizeFoodWithGemini(file) {
             body: JSON.stringify({
               generationConfig: {
                 temperature: c.temperature ?? 0.35,
-                maxOutputTokens: c.maxOutputTokens ?? 256,
+                maxOutputTokens: c.maxOutputTokens ?? 400,
+                responseMimeType: 'application/json',
               },
               contents: [
                 {

@@ -74,12 +74,21 @@ async function recognizeFood(file) {
 function formatFeedError(message) {
   const msg = String(message || '');
   if (
+    /Сервер Gemini перегружен|high_demand|high demand|UNAVAILABLE/i.test(msg) ||
+    (msg.includes('503') && /demand|unavailable/i.test(msg))
+  ) {
+    return 'Сервер Gemini перегружен. Подожди 30–60 сек и сфоткай снова.';
+  }
+  if (
     msg.includes('429') ||
     /quota|rate limit|too many|resource_exhausted|Слишком много запросов к Gemini/i.test(
       msg
     )
   ) {
-    return 'Слишком много запросов к Gemini. Подожди минуту. Если оплатил — проверь, что в игре тот же API key, что в AI Studio после оплаты (при сомнении создай новый ключ).';
+    return 'Слишком много запросов к Gemini. Подожди минуту и попробуй снова.';
+  }
+  if (/не разобрал ответ/i.test(msg)) {
+    return 'Колобок не понял ответ нейросети. Сфоткай ещё раз — крупнее и ближе.';
   }
   if (msg.includes('gemini-timeout')) {
     return 'Долго отвечает. Попробуй ещё раз или другое фото.';
@@ -93,20 +102,32 @@ function formatFeedError(message) {
   if (/прокси gemini|GEMINI_API_KEY/i.test(msg)) {
     return 'Сервер Kolobok ещё не настроен. Владельцу: задеплой geminiFoodPhoto + секрет GEMINI_API_KEY.';
   }
+  if (/ограничением «сайты»|HTTP_REFERRER/i.test(msg)) {
+    return 'Ключ Gemini с ограничением «только сайты». В Google Cloud → Credentials → ключ → Application restrictions: None. Или новый ключ в AI Studio.';
+  }
+  if (/Generative Language API|биллинга на проекте/i.test(msg)) {
+    return 'Включи Generative Language API и биллинг на проекте kolobok-6032e (Google Cloud Console → APIs).';
+  }
+  if (/API key expired|просрочен или отозван/i.test(msg)) {
+    return 'Ключ Gemini просрочен/удалён в AI Studio. Создай новый ключ → secrets:set GEMINI_API_KEY → curl до ответа с models.';
+  }
   if (/API_KEY_INVALID|api key not valid|ключ на сервере/i.test(msg)) {
-    return 'Ключ Gemini на сервере неверный. Cloud Shell: firebase functions:secrets:set GEMINI_API_KEY (ключ из AI Studio), потом firebase deploy --only functions:geminiFoodPhoto';
+    return 'Ключ Gemini на сервере неверный. Cloud Shell: firebase functions:secrets:set GEMINI_API_KEY --project kolobok-6032e → Y';
   }
   if (/has not been used in project|api_key_service_blocked/i.test(msg)) {
     return 'Gemini API выключен для этого ключа. Нужен ключ с aistudio.google.com/apikey (проект с оплатой).';
   }
+  if (/CONSUMER_SUSPENDED|has been suspended/i.test(msg)) {
+    return 'Этот ключ Gemini отключён Google (suspended). AI Studio: удали ключ → Create API key → Firebase secrets:set GEMINI_API_KEY → Y. В git не клади.';
+  }
   if (/leaked|заблокирован|reported as leaked/i.test(msg)) {
-    return 'Ключ Gemini заблокирован Google. Новый ключ только в Firebase: Cloud Shell → firebase functions:secrets:set GEMINI_API_KEY → Y. В git и npm build ключ не клади.';
+    return 'Ключ Gemini заблокирован Google. Новый ключ только в Firebase: secrets:set GEMINI_API_KEY → Y. В git не клади.';
   }
   if (/Модель недоступна|GEMINI_ALL_MODELS|не ответил/i.test(msg)) {
-    return 'Gemini не смог обработать фото. Нужен новый API key (старый мог заблокироваться) — aistudio.google.com/apikey';
+    return 'Gemini не смог обработать фото. Попробуй другое фото или новый API key в AI Studio.';
   }
-  if (msg.includes('403')) {
-    return 'Ключ Gemini не принят. Новый: aistudio.google.com/apikey → Firebase secrets:set GEMINI_API_KEY (см. FOOD_PHOTO.md)';
+  if (/Прокси Gemini 403|Прокси Gemini 400/i.test(msg)) {
+    return 'Сервер отклонил ключ (403). Создай ключ в AI Studio без ограничений → secrets:set GEMINI_API_KEY. Проверка: FOOD_PHOTO.md § «Проверка ключа».';
   }
   return msg.length > 220 ? `${msg.slice(0, 220)}…` : msg;
 }

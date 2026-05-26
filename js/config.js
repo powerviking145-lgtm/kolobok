@@ -688,14 +688,16 @@ export const CONFIG = {
       /** Локально без прокси: secrets.local.js + npm run build */
       apiKey: '',
       /** Приоритет (+ список из API). 1.5 сняты с API — не добавлять. */
-      models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
+      models: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'],
       model: 'gemini-2.5-flash',
       useApiModelList: true,
       timeoutMs: 28000,
       maxImageSide: 1024,
       jpegQuality: 0.82,
       temperature: 0.35,
-      maxOutputTokens: 280,
+      maxOutputTokens: 400,
+      proxyRetries: 2,
+      proxyRetryMs: 3500,
       /** Выше — сразу кормим без выбора из 3 кнопок */
       skipConfirmMinConfidence: 0.82,
     },

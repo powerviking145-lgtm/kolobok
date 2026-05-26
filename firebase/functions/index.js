@@ -151,6 +151,31 @@ function isModelUnavailable(status, errText) {
   );
 }
 
+function isOverloadError(status, errText) {
+  const msg = String(errText || '').toLowerCase();
+  return (
+    status === 503 ||
+    status === 429 ||
+    msg.includes('high demand') ||
+    msg.includes('unavailable') ||
+    msg.includes('resource_exhausted') ||
+    msg.includes('overloaded')
+  );
+}
+
+function isAuthError(status, errText) {
+  const msg = String(errText || '').toLowerCase();
+  return (
+    msg.includes('api_key_invalid') ||
+    msg.includes('api key not valid') ||
+    msg.includes('api key expired') ||
+    msg.includes('consumer_suspended') ||
+    msg.includes('has been suspended') ||
+    msg.includes('reported as leaked') ||
+    msg.includes('api_key_service_blocked')
+  );
+}
+
 async function geminiGenerate(apiKey, model, body) {
   const url = `${GEMINI_BASE}/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url, {
@@ -190,7 +215,7 @@ exports.geminiFoodPhoto = onRequest(
       return;
     }
 
-    const apiKey = geminiApiKeySecret.value();
+    const apiKey = String(geminiApiKeySecret.value() || '').trim();
     if (!apiKey) {
       res.status(503).json({
         ok: false,
@@ -214,7 +239,8 @@ exports.geminiFoodPhoto = onRequest(
     const genBody = {
       generationConfig: {
         temperature: Number(body.temperature) || 0.35,
-        maxOutputTokens: Number(body.maxOutputTokens) || 280,
+        maxOutputTokens: Number(body.maxOutputTokens) || 400,
+        responseMimeType: 'application/json',
       },
       contents: [
         {
@@ -232,6 +258,7 @@ exports.geminiFoodPhoto = onRequest(
     };
 
     let lastErr = 'Gemini недоступен';
+    let overload = false;
     for (const model of models) {
       try {
         const result = await geminiGenerate(apiKey, model, genBody);
@@ -243,11 +270,29 @@ exports.geminiFoodPhoto = onRequest(
         return;
       } catch (err) {
         lastErr = err.body || err.message || lastErr;
+        if (isAuthError(err.status, lastErr)) {
+          const status = err.status && err.status >= 400 ? err.status : 403;
+          res.status(status).json({ ok: false, error: String(lastErr).slice(0, 400) });
+          return;
+        }
         if (isModelUnavailable(err.status, lastErr)) continue;
+        if (isOverloadError(err.status, lastErr)) {
+          overload = true;
+          await new Promise((r) => setTimeout(r, 1500));
+          continue;
+        }
         const status = err.status && err.status >= 400 ? err.status : 502;
         res.status(status).json({ ok: false, error: String(lastErr).slice(0, 400) });
         return;
       }
+    }
+
+    if (overload) {
+      res.status(503).json({
+        ok: false,
+        error: 'high_demand',
+      });
+      return;
     }
 
     res.status(502).json({ ok: false, error: String(lastErr).slice(0, 400) });

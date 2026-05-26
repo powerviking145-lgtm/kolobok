@@ -58,6 +58,26 @@ npm run firebase:deploy:gemini
 
 В `config.js` уже `foodPhoto.gemini.proxyUrl`. После деплоя: `npm run build`, `git push`, «Сфоткать еду» в боте.
 
+### Проверка ключа (ошибка 403 / «не принят»)
+
+В **Cloud Shell** (тот же проект `kolobok-6032e`):
+
+```bash
+KEY=$(firebase functions:secrets:access GEMINI_API_KEY --project kolobok-6032e)
+curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=${KEY}" | head -c 600
+```
+
+| Ответ | Что делать |
+|--------|------------|
+| `"models":` и статус 200 | Ключ ок — перезалей секрет без пробелов, `deploy --only functions:geminiFoodPhoto` |
+| `CONSUMER_SUSPENDED` / `has been suspended` | Ключ **отключён Google** (часто после утечки в GitHub). Удали в AI Studio → **новый** ключ → `secrets:set` → снова `curl` до 200 |
+| `API key expired` | Ключ **удалён или отозван** в AI Studio. Только **Create API key** (новый), не старый из буфера → `secrets:set` |
+| `API_KEY_INVALID` | Неверный ключ → новый в [AI Studio](https://aistudio.google.com/apikey) → `secrets:set` |
+| `API_KEY_HTTP_REFERRER_BLOCKED` | Ключ с ограничением «сайты» → [Credentials](https://console.cloud.google.com/apis/credentials?project=kolobok-6032e) → ключ → **Application restrictions: None** |
+| `PERMISSION_DENIED` / API not enabled | [Включи Generative Language API](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com?project=kolobok-6032e) + биллинг на **том же** проекте, что ключ в AI Studio |
+
+Ключ для прокси создавай в **AI Studio**, не копируй `firebase.apiKey` из `config.js`.
+
 ## Файлы
 
 | Файл | Роль |
