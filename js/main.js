@@ -4,6 +4,7 @@ import { gameState } from './state.js';
 import {
   getMood,
   pickPhrase,
+  pickGreetingPhrase,
   pickBurnRunPhrase,
   isBurnRunReady,
   getMoodClass,
@@ -510,10 +511,10 @@ function updateBurnRunUI(stats) {
   }
 }
 
-function showPhrase(text, animate = true, { autoHide } = {}) {
+function showPhrase(text, animate = true, { autoHide, hideMs } = {}) {
   currentPhrase = text;
   const shouldHide = autoHide ?? CONFIG.replies?.homeIdleAutoHide ?? false;
-  replySystem?.showIdle(text, { animate, autoHide: shouldHide });
+  replySystem?.showIdle(text, { animate, autoHide: shouldHide, hideMs });
 }
 
 function refreshPhrase(animate = true) {
@@ -1146,8 +1147,46 @@ function startHomeFoods() {
   homeSpawns.start();
 }
 
+function tryShowHomeGreeting() {
+  const cfg = CONFIG.greeting ?? {};
+  if (cfg.enabled === false) return;
+
+  const name = gameState.getKolobokName();
+  if (!name) return;
+  if (tutorial?.isActive?.()) return;
+  if (purchase?.isActive?.()) return;
+  if (shopUpgradeHint?.isActive?.()) return;
+
+  const sessionKey = cfg.sessionKey ?? 'kolobok-greeting-shown';
+  try {
+    if (sessionStorage.getItem(sessionKey) === '1') return;
+  } catch {
+    /* ignore */
+  }
+
+  const text = pickGreetingPhrase(name);
+  if (!text) return;
+
+  const hideMs = cfg.hideMs ?? 9000;
+  showPhrase(text, true, { autoHide: true, hideMs });
+
+  try {
+    sessionStorage.setItem(sessionKey, '1');
+  } catch {
+    /* ignore */
+  }
+
+  window.setTimeout(() => {
+    if (!tutorial?.isActive?.() && !purchase?.isActive?.()) {
+      refreshPhrase(true);
+    }
+  }, hideMs + 250);
+}
+
 function activateHomeScreen() {
   restoreHomeIdleState();
+  const greetDelay = CONFIG.greeting?.delayMs ?? 600;
+  window.setTimeout(() => tryShowHomeGreeting(), greetDelay);
   window.setTimeout(() => tryShowShopUpgradeHint(), 400);
 }
 

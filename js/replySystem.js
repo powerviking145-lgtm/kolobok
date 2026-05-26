@@ -151,7 +151,7 @@ export function createReplySystem({ elements, getHighlightButton }) {
     document.documentElement.classList.remove('is-lecture-active');
   }
 
-  function showIdle(text, { animate = true, autoHide = true } = {}) {
+  function showIdle(text, { animate = true, autoHide = true, hideMs: hideMsOverride } = {}) {
     if (!idleBubble) return;
     hideNutrition();
     document.documentElement.classList.add('is-lecture-active');
@@ -170,7 +170,7 @@ export function createReplySystem({ elements, getHighlightButton }) {
 
     clearIdleTimer();
     const hideMs = autoHide
-      ? (cfg.idleHideMs ?? CONFIG.ui?.speechHideIdleMs ?? 4000)
+      ? (hideMsOverride ?? cfg.idleHideMs ?? CONFIG.ui?.speechHideIdleMs ?? 4000)
       : 0;
     if (hideMs > 0) {
       idleTimerId = window.setTimeout(hideIdle, hideMs);

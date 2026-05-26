@@ -45,6 +45,13 @@ export function pickBurnRunPhrase(lastPhrase = '') {
   return pickRandom(list, lastPhrase);
 }
 
+export function pickGreetingPhrase(name) {
+  const templates = CONFIG.greeting?.templates ?? [];
+  if (!templates.length || !name) return null;
+  const template = pickRandom(templates);
+  return template.replace(/\{name\}/g, name);
+}
+
 export function pickPhrase(mood, lastPhrase = '') {
   if (mood === 'normal') {
     const combined = [...phrases.normal, ...phrases.idle];

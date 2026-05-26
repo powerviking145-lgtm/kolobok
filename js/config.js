@@ -33,6 +33,25 @@ export const CONFIG = {
     devTelegramId: 999999001,
   },
 
+  greeting: {
+    enabled: true,
+    /** Задержка после появления главного экрана */
+    delayMs: 600,
+    /** Сколько висит приветствие в баббле */
+    hideMs: 9000,
+    sessionKey: 'kolobok-greeting-shown',
+    templates: [
+      'Йо, {name}! На связи, бро.',
+      '{name}, ты зашёл? Норм, погнали.',
+      'Слышь, {name}, колобок на линии.',
+      'О, {name} зашёл. Уважаю.',
+      '{name}, я уже тут — заряжай движ.',
+      'Брат {name}, без тебя тихо было. Шучу.',
+      'Красавчик {name}, печь остыла — я нет.',
+      'Эй, {name}! Сказка продолжается.',
+    ],
+  },
+
   onboarding: {
     nameMinLength: 2,
     nameMaxLength: 16,
