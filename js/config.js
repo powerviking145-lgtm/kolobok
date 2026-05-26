@@ -462,9 +462,10 @@ export const CONFIG = {
 
   kolobokHome: {
     videoType: 'video/webm',
-    preloadBeforeEndSec: 1.6,
-    prerollBeforeEndSec: 0.35,
-    videoCrossfadeMs: 320,
+    preloadBeforeEndSec: 2.8,
+    prerollBeforeEndSec: 0.65,
+    videoCrossfadeMs: 520,
+    videoExitFadeMs: 520,
     videos: [
       {
         src: 'assets/kolobok/kolobok-home.webm',

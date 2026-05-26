@@ -3225,7 +3225,7 @@ html.is-lecture-active .speech-thought__dot {
   line-height: 0;
   -webkit-tap-highlight-color: transparent;
   border-radius: 0;
-  background: #000;
+  background: #241408;
   z-index: 2;
 }
 
@@ -3248,12 +3248,22 @@ html.is-lecture-active .speech-thought__dot {
   pointer-events: none;
   opacity: 0;
   z-index: 0;
-  transition: opacity 0.32s ease;
-  background: #241408;
+  transition: opacity 0.52s ease-in-out;
+  background-color: #241408;
+  background-size: cover;
+  background-position: center 42%;
+  will-change: opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .kolobok__video.is-visible {
   opacity: 1;
+}
+
+.kolobok__video.is-exiting {
+  opacity: 0 !important;
+  z-index: 1;
 }
 
 .kolobok__video.is-front {
@@ -3262,6 +3272,7 @@ html.is-lecture-active .speech-thought__dot {
 
 .kolobok__video.is-back {
   z-index: 1;
+  opacity: 1;
 }
 
 .zone--buttons,

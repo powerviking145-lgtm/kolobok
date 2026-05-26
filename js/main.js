@@ -615,11 +615,16 @@ function applyClipPoster(videoEl, clip) {
 
 function schedulePosterClearOnPlay(videoEl) {
   if (!videoEl?.poster) return;
-  const onPlaying = () => {
+  const onFrame = () => {
+    if (videoEl.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
     videoEl.removeAttribute('poster');
     videoEl.removeEventListener('playing', onPlaying);
+    videoEl.removeEventListener('timeupdate', onFrame);
   };
-  videoEl.addEventListener('playing', onPlaying);
+  const onPlaying = () => {
+    videoEl.addEventListener('timeupdate', onFrame, { once: true });
+  };
+  videoEl.addEventListener('playing', onPlaying, { once: true });
 }
 
 function assignClipToElement(videoEl, index, options = {}) {
@@ -640,23 +645,34 @@ function assignClipToElement(videoEl, index, options = {}) {
 
   const { videoType } = CONFIG.kolobokHome;
 
-  if (videoType) {
-    let source = videoEl.querySelector('source');
-    if (!source) {
-      source = document.createElement('source');
-      videoEl.appendChild(source);
-    }
-    if (source.getAttribute('src') !== clip.src) {
+  const srcChanged =
+    videoType
+      ? !clipSrcOnElement(videoEl, clip.src)
+      : videoEl.currentSrc !== clip.src && !clipSrcOnElement(videoEl, clip.src);
+
+  if (srcChanged) {
+    if (videoType) {
+      let source = videoEl.querySelector('source');
+      if (!source) {
+        source = document.createElement('source');
+        videoEl.appendChild(source);
+      }
       source.src = clip.src;
       source.type = videoType;
+    } else {
+      videoEl.src = clip.src;
     }
-  } else if (videoEl.src !== clip.src) {
-    videoEl.src = clip.src;
+    schedulePosterClearOnPlay(videoEl);
+    videoEl.load();
+    return whenCanPlayThrough(videoEl, options.timeoutMs);
   }
 
-  schedulePosterClearOnPlay(videoEl);
-  videoEl.load();
-  return whenCanPlayThrough(videoEl, options.timeoutMs);
+  if (videoEl.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
+    videoEl.load();
+    return whenCanPlayThrough(videoEl, options.timeoutMs);
+  }
+
+  return Promise.resolve();
 }
 
 function primeHomeVideoPosters() {
@@ -732,6 +748,7 @@ function startHomeVideoPreroll() {
 
   homeVideo.prerolling = true;
   incoming.currentTime = 0;
+  incoming.classList.remove('is-exiting', 'is-front');
   incoming.classList.add('is-visible', 'is-back');
   incoming.play().catch(() => {
     homeVideo.prerolling = false;
@@ -739,18 +756,41 @@ function startHomeVideoPreroll() {
   });
 }
 
+async function ensureIncomingReadyForCut() {
+  const incoming = homeVideo.buffer;
+  if (!incoming) return false;
+
+  const idx = pickNextHomeVideoIndex();
+  await assignClipToElement(incoming, idx);
+  incoming.currentTime = 0;
+  incoming.classList.remove('is-exiting', 'is-front');
+  incoming.classList.add('is-visible', 'is-back');
+
+  try {
+    await incoming.play();
+  } catch {
+    return false;
+  }
+
+  homeVideo.prerolling = true;
+  await new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+  return incoming.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+}
+
 function cutHomeVideos() {
   const outgoing = homeVideo.active;
   const incoming = homeVideo.buffer;
-  if (!outgoing || !incoming) return;
+  if (!outgoing || !incoming || !homeVideo.prerolling) return;
 
-  const fadeMs = CONFIG.kolobokHome.videoCrossfadeMs ?? 280;
+  const exitMs = CONFIG.kolobokHome.videoExitFadeMs ?? CONFIG.kolobokHome.videoCrossfadeMs ?? 520;
+
+  incoming.classList.remove('is-back', 'is-exiting');
+  incoming.classList.add('is-visible', 'is-front');
 
   outgoing.classList.remove('is-front');
-  outgoing.classList.add('is-back', 'is-visible');
-
-  incoming.classList.remove('is-back');
-  incoming.classList.add('is-visible', 'is-front');
+  outgoing.classList.add('is-back', 'is-visible', 'is-exiting');
 
   homeVideo.active = incoming;
   homeVideo.buffer = outgoing;
@@ -758,11 +798,11 @@ function cutHomeVideos() {
   homeVideo.preloading = false;
 
   window.setTimeout(() => {
-    outgoing.classList.remove('is-visible', 'is-back');
+    outgoing.classList.remove('is-visible', 'is-back', 'is-exiting');
     outgoing.pause();
     outgoing.currentTime = 0;
     assignClipToElement(outgoing, pickNextHomeVideoIndex()).catch(() => {});
-  }, fadeMs);
+  }, exitMs);
 }
 
 async function onHomeVideoEnded(e) {
@@ -776,20 +816,13 @@ async function onHomeVideoEnded(e) {
     return;
   }
 
-  const incoming = homeVideo.buffer;
-  if (!homeVideo.prerolling && incoming) {
-    if (incoming.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
-      await assignClipToElement(incoming, pickNextHomeVideoIndex());
-    }
-    incoming.currentTime = 0;
-    incoming.classList.add('is-visible', 'is-back');
-    try {
-      await incoming.play();
-      homeVideo.prerolling = true;
-    } catch {
-      await assignClipToElement(incoming, pickNextHomeVideoIndex());
-      await incoming.play();
-      homeVideo.prerolling = true;
+  const outgoing = homeVideo.active;
+  if (!homeVideo.prerolling) {
+    const ok = await ensureIncomingReadyForCut();
+    if (!ok && outgoing) {
+      outgoing.currentTime = Math.max(0, (outgoing.duration || 1) - 0.08);
+      outgoing.play().catch(() => {});
+      return;
     }
   }
 
