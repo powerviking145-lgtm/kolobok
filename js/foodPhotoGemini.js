@@ -361,6 +361,11 @@ async function recognizeViaProxy({ prompt, base64, mimeType, models, c }) {
     if (/location is not supported/i.test(errMsg)) {
       throw new Error(GEMINI_LOCATION);
     }
+    if (/API_KEY_INVALID|api key not valid/i.test(errMsg)) {
+      throw new Error(
+        'Ключ Gemini на сервере неверный — обнови GEMINI_API_KEY в Firebase (AI Studio)'
+      );
+    }
     throw new Error(errMsg || `Прокси Gemini: HTTP ${res.status}`);
   }
   return { text: data.text, model: data.model || models[0] };

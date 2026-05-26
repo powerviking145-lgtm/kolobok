@@ -93,12 +93,11 @@ function formatFeedError(message) {
   if (/прокси gemini|GEMINI_API_KEY/i.test(msg)) {
     return 'Сервер Kolobok ещё не настроен. Владельцу: задеплой geminiFoodPhoto + секрет GEMINI_API_KEY.';
   }
-  if (
-    /service_disabled|api_key_service_blocked|не от ai studio|generativelanguage/i.test(
-      msg
-    )
-  ) {
-    return 'Ключ из проекта Firebase, а не AI Studio — Gemini там выключен. Новый ключ: aistudio.google.com/apikey (проект, где $25).';
+  if (/API_KEY_INVALID|api key not valid|ключ на сервере/i.test(msg)) {
+    return 'Ключ Gemini на сервере неверный. Cloud Shell: firebase functions:secrets:set GEMINI_API_KEY (ключ из AI Studio), потом firebase deploy --only functions:geminiFoodPhoto';
+  }
+  if (/has not been used in project|api_key_service_blocked/i.test(msg)) {
+    return 'Gemini API выключен для этого ключа. Нужен ключ с aistudio.google.com/apikey (проект с оплатой).';
   }
   if (/leaked|заблокирован.*github/i.test(msg)) {
     return 'Ключ Gemini заблокирован — он был в открытом коде. Создай новый в AI Studio, вставь в secrets.local.js, npm run build, push.';
