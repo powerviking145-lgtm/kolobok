@@ -73,8 +73,13 @@ async function recognizeFood(file) {
 
 function formatFeedError(message) {
   const msg = String(message || '');
-  if (msg.includes('429') || /quota|rate limit|too many/i.test(msg)) {
-    return 'Лимит Gemini (бесплатный тариф). Подожди 1–2 мин или включи биллинг в Google AI Studio.';
+  if (
+    msg.includes('429') ||
+    /quota|rate limit|too many|resource_exhausted|Слишком много запросов к Gemini/i.test(
+      msg
+    )
+  ) {
+    return 'Слишком много запросов к Gemini. Подожди минуту. Если оплатил — проверь, что в игре тот же API key, что в AI Studio после оплаты (при сомнении создай новый ключ).';
   }
   if (msg.includes('gemini-timeout')) {
     return 'Долго отвечает. Попробуй ещё раз или другое фото.';

@@ -38,6 +38,14 @@ window.__KOLOBOK_GEMINI_KEY = 'AIza...';
 | `js/foodPhotoFeed.js` | UI модалки |
 | `js/config.js` → `foodPhoto` | настройки |
 
+## Модели
+
+Для **фото** нужна vision-модель (`generateContent`), не TTS из логов AI Studio.
+
+При старте запроса список подтягивается с `GET .../v1beta/models`, отбрасываются `*tts*`, embedding и т.п. Порядок: `config.foodPhoto.gemini.models` + найденные (приоритет 2.5 Flash).
+
+`useApiModelList: false` — только список из config.
+
 ## Отключить Gemini / вернуть чек
 
 `foodPhoto.enabled: false` — снова флоу «Распаковать покупки».

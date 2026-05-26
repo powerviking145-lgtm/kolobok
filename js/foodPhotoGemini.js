@@ -31,6 +31,89 @@ function withTimeout(promise, ms, label = 'timeout') {
   ]);
 }
 
+function normalizeModelId(name) {
+  return String(name || '')
+    .replace(/^models\//, '')
+    .trim();
+}
+
+/** Не TTS/embedding — нужны модели с generateContent для картинки */
+function isVisionCandidate(name) {
+  const n = normalizeModelId(name).toLowerCase();
+  if (!n || !n.startsWith('gemini')) return false;
+  if (/tts|embedding|imagen|aqa|live|native-audio|computer-use|robotics/i.test(n)) {
+    return false;
+  }
+  return true;
+}
+
+function modelScore(name) {
+  const n = normalizeModelId(name).toLowerCase();
+  let s = 0;
+  if (n.includes('2.5')) s += 50;
+  if (n.includes('2.0')) s += 35;
+  if (n.includes('1.5')) s += 25;
+  if (n.includes('flash')) s += 30;
+  if (n.includes('pro')) s += 12;
+  if (n.includes('lite')) s += 8;
+  if (n.includes('preview')) s -= 3;
+  return s;
+}
+
+function rankVisionModels(names) {
+  return [...new Set(names.filter(isVisionCandidate))].sort(
+    (a, b) => modelScore(b) - modelScore(a)
+  );
+}
+
+async function fetchAvailableGeminiModels(apiKey) {
+  const res = await withTimeout(
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+    ),
+    12000,
+    'gemini-list-timeout'
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.models || [])
+    .filter(
+      (m) =>
+        Array.isArray(m.supportedGenerationMethods) &&
+        m.supportedGenerationMethods.includes('generateContent')
+    )
+    .map((m) => normalizeModelId(m.name))
+    .filter(isVisionCandidate);
+}
+
+async function resolveModelCandidates(apiKey) {
+  const c = geminiCfg();
+  const configured = rankVisionModels(
+    (Array.isArray(c.models) && c.models.length
+      ? c.models
+      : c.model
+        ? [c.model]
+        : []) || ['gemini-2.5-flash', 'gemini-1.5-flash']
+  );
+
+  const discovered =
+    c.useApiModelList === false
+      ? []
+      : await fetchAvailableGeminiModels(apiKey).catch(() => []);
+  const merged = [];
+  const seen = new Set();
+
+  for (const id of [...configured, ...discovered]) {
+    const norm = normalizeModelId(id);
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    merged.push(norm);
+  }
+
+  const ranked = rankVisionModels(merged);
+  return ranked.length ? ranked : configured;
+}
+
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -125,8 +208,25 @@ function findFoodLoose(label) {
   );
 }
 
+const GEMINI_RATE_LIMIT =
+  'Слишком много запросов к Gemini. Подожди 30–60 сек. Если уже оплатил — выпусти новый API key в том же проекте, где включён биллинг (aistudio.google.com/apikey).';
+
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isModelUnavailable(res, errText) {
+  const msg = String(errText || '').toLowerCase();
+  return (
+    res.status === 404 ||
+    msg.includes('no longer available') ||
+    msg.includes('not found') ||
+    msg.includes('is not found')
+  );
+}
+
 /**
- * @returns {Promise<{ food: object, comment: string, confidence: number, source: 'gemini' }>}
+ * @returns {Promise<{ food: object, comment: string, confidence: number, source: 'gemini', model: string }>}
  */
 export async function recognizeFoodWithGemini(file) {
   const c = geminiCfg();
@@ -135,10 +235,14 @@ export async function recognizeFoodWithGemini(file) {
     throw new Error('Нет ключа Gemini — добавь в config.foodPhoto.gemini.apiKey');
   }
 
-  const model = c.model ?? 'gemini-2.0-flash';
   const maxSide = c.maxImageSide ?? 1024;
   const quality = c.jpegQuality ?? 0.82;
   const { base64, mimeType } = await compressImageFile(file, maxSide, quality);
+
+  const modelCandidates = await resolveModelCandidates(apiKey);
+  if (!modelCandidates.length) {
+    throw new Error('Gemini: нет подходящих vision-моделей для фото');
+  }
 
   const catalog = buildFoodCatalogPrompt();
   const prompt = (c.prompt ?? '').trim() || [
@@ -153,59 +257,114 @@ export async function recognizeFoodWithGemini(file) {
     catalog,
   ].join('\n');
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  let lastErr = null;
+  const tried = [];
 
-  const res = await withTimeout(
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        generationConfig: {
-          temperature: c.temperature ?? 0.35,
-          maxOutputTokens: c.maxOutputTokens ?? 256,
-        },
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mimeType, data: base64 } },
-            ],
-          },
-        ],
-      }),
-    }),
-    c.timeoutMs ?? 25000,
-    'gemini-timeout'
+  for (const model of modelCandidates) {
+    tried.push(model);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+    try {
+      let res = null;
+      let errText = '';
+      for (let attempt = 0; attempt < 2; attempt++) {
+        res = await withTimeout(
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              generationConfig: {
+                temperature: c.temperature ?? 0.35,
+                maxOutputTokens: c.maxOutputTokens ?? 256,
+              },
+              contents: [
+                {
+                  parts: [
+                    { text: prompt },
+                    { inline_data: { mime_type: mimeType, data: base64 } },
+                  ],
+                },
+              ],
+            }),
+          }),
+          c.timeoutMs ?? 28000,
+          'gemini-timeout'
+        );
+        if (res.ok) break;
+        errText = await res.text().catch(() => '');
+        const rateLimited =
+          res.status === 429 || /quota|rate limit|resource_exhausted/i.test(errText);
+        if (rateLimited && attempt === 0) {
+          await sleep(c.rateLimitRetryMs ?? 2500);
+          continue;
+        }
+        break;
+      }
+
+      if (!res.ok) {
+        if (
+          res.status === 429 ||
+          /quota|rate limit|resource_exhausted/i.test(errText)
+        ) {
+          throw new Error(GEMINI_RATE_LIMIT);
+        }
+
+        if (isModelUnavailable(res, errText)) {
+          lastErr = new Error(`Модель недоступна: ${model}`);
+          continue;
+        }
+
+        throw new Error(`Gemini ${res.status}: ${errText.slice(0, 140)}`);
+      }
+
+      const data = await res.json();
+      const text =
+        data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
+      const parsed = extractJsonObject(text);
+      if (!parsed) {
+        throw new Error('Gemini: не разобрал ответ');
+      }
+
+      if (String(parsed.id || '').toLowerCase() === 'unknown') {
+        throw new Error('На фото не видно еду — сфоткай тарелку или продукт поближе');
+      }
+
+      let food =
+        findFoodById(parsed.id) ||
+        findFoodLoose(parsed.nameRu || parsed.name || parsed.label);
+      if (!food && parsed.id) {
+        food = findFoodLoose(parsed.id);
+      }
+      if (!food) {
+        throw new Error('Gemini: еда не из каталога');
+      }
+
+      const confidence = Math.max(
+        0,
+        Math.min(1, Number(parsed.confidence) || 0.7)
+      );
+      const comment = String(parsed.comment || '').trim();
+
+      return {
+        food,
+        comment,
+        confidence,
+        source: 'gemini',
+        model,
+      };
+    } catch (err) {
+      if (String(err?.message || '') === GEMINI_RATE_LIMIT) {
+        throw err;
+      }
+      lastErr = err;
+    }
+  }
+
+  console.warn('Колобок Gemini: модели', tried.join(', '));
+  throw (
+    lastErr ||
+    new Error(
+      'Нет доступной vision-модели Gemini. В AI Studio открой Playground → модель с Flash (не TTS).'
+    )
   );
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 120)}`);
-  }
-
-  const data = await res.json();
-  const text =
-    data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
-  const parsed = extractJsonObject(text);
-  if (!parsed) {
-    throw new Error('Gemini: не разобрал ответ');
-  }
-
-  let food = findFoodById(parsed.id) || findFoodLoose(parsed.nameRu || parsed.name || parsed.label);
-  if (!food && parsed.id !== 'unknown') {
-    food = findFoodLoose(parsed.id);
-  }
-  if (!food) {
-    throw new Error('Gemini: еда не из каталога');
-  }
-
-  const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0.7));
-  const comment = String(parsed.comment || '').trim();
-
-  return {
-    food,
-    comment,
-    confidence,
-    source: 'gemini',
-  };
 }
