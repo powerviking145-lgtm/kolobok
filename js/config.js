@@ -682,16 +682,10 @@ export const CONFIG = {
     pickCount: 3,
     gemini: {
       enabled: true,
-      /** Google AI Studio → API key. Не коммить! Или secrets.local.js / window.__KOLOBOK_GEMINI_KEY */
-      apiKey: 'AIzaSyC7uUhzvZ8mTCWhQxYI9ocpS8zsWckx2GY',
-      /** Приоритет (ещё и список из API /v1beta/models). TTS-модели для фото не подходят. */
-      models: [
-        'gemini-2.5-flash',
-        'gemini-2.5-pro',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-      ],
+      /** Не храни ключ здесь — попадёт в git. Только secrets.local.js + npm run build */
+      apiKey: '',
+      /** Приоритет (+ список из API). 1.5 сняты с API — не добавлять. */
+      models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
       model: 'gemini-2.5-flash',
       useApiModelList: true,
       timeoutMs: 28000,

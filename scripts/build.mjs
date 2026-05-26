@@ -51,6 +51,28 @@ if (modulesOnly) {
 
 fs.mkdirSync(bundleDir, { recursive: true });
 
+function readGeminiKeyForBuild() {
+  if (process.env.GEMINI_API_KEY?.trim()) {
+    return process.env.GEMINI_API_KEY.trim();
+  }
+  const secretsPath = path.join(root, 'js', 'secrets.local.js');
+  if (!fs.existsSync(secretsPath)) return '';
+  const text = fs.readFileSync(secretsPath, 'utf8');
+  const m = text.match(/__KOLOBOK_GEMINI_KEY\s*=\s*'([^']+)'/);
+  return m?.[1]?.trim() || '';
+}
+
+const geminiBuildKey = readGeminiKeyForBuild();
+const geminiBanner = geminiBuildKey
+  ? `globalThis.__KOLOBOK_GEMINI_BUILD_KEY__=${JSON.stringify(geminiBuildKey)};`
+  : '';
+
+if (!geminiBuildKey) {
+  console.warn('');
+  console.warn('⚠ Нет Gemini-ключа: js/secrets.local.js → npm run build (фото-ИИ в TG не заработает)');
+  console.warn('');
+}
+
 const shared = {
   bundle: true,
   format: 'esm',
@@ -58,6 +80,7 @@ const shared = {
   minify: !devMode,
   sourcemap: true,
   logLevel: 'info',
+  ...(geminiBanner ? { banner: { js: geminiBanner } } : {}),
 };
 
 await esbuild.build({

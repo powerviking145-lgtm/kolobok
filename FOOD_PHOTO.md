@@ -13,8 +13,11 @@
 ## Ключ API
 
 1. https://aistudio.google.com/apikey  
-2. В `js/config.js` → `foodPhoto.gemini.apiKey: 'ТВОЙ_КЛЮЧ'`  
-3. **Не пушить ключ в git.** Лучше `js/secrets.local.js` (в .gitignore):
+2. **Оплата ($25)** — на **проекте в AI Studio**, не на Firebase. Ключ из `firebase.apiKey` или GCP проекта `kolobok-6032e` **не работает** для Gemini, пока не включишь [Generative Language API](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com) там же. Проще: ключ только с [aistudio.google.com/apikey](https://aistudio.google.com/apikey).  
+3. Проверка локально: `node scripts/gemini-check.mjs` (статус 200 = ок).  
+4. Ключ **только** в `js/secrets.local.js` (в .gitignore). **Не в config.js** — иначе GitHub заблокирует ключ.  
+5. Сборка под Telegram: `npm run build` (подставляет ключ в бандл из secrets.local.js).  
+6. Пример `secrets.local.js`:
 
 ```javascript
 window.__KOLOBOK_GEMINI_KEY = 'AIza...';

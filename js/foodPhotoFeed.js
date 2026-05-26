@@ -84,8 +84,24 @@ function formatFeedError(message) {
   if (msg.includes('gemini-timeout')) {
     return 'Долго отвечает. Попробуй ещё раз или другое фото.';
   }
+  if (/fetch failed|Failed to fetch|ECONNRESET|сеть/i.test(msg)) {
+    return 'Нет связи с Google. Попробуй ещё раз через минуту или другой интернет/VPN.';
+  }
+  if (
+    /service_disabled|api_key_service_blocked|не от ai studio|generativelanguage/i.test(
+      msg
+    )
+  ) {
+    return 'Ключ из проекта Firebase, а не AI Studio — Gemini там выключен. Новый ключ: aistudio.google.com/apikey (проект, где $25).';
+  }
+  if (/leaked|заблокирован.*github/i.test(msg)) {
+    return 'Ключ Gemini заблокирован — он был в открытом коде. Создай новый в AI Studio, вставь в secrets.local.js, npm run build, push.';
+  }
+  if (/Модель недоступна|GEMINI_ALL_MODELS|не ответил/i.test(msg)) {
+    return 'Gemini не смог обработать фото. Нужен новый API key (старый мог заблокироваться) — aistudio.google.com/apikey';
+  }
   if (msg.includes('403')) {
-    return 'Ключ Gemini не принят. Проверь API key в Google AI Studio.';
+    return 'Ключ Gemini не принят. Новый ключ: aistudio.google.com/apikey → secrets.local.js → npm run build';
   }
   return msg.length > 220 ? `${msg.slice(0, 220)}…` : msg;
 }

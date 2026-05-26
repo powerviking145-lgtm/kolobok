@@ -9,11 +9,16 @@ function getFoodList() {
 }
 
 function resolveApiKey() {
+  if (typeof window !== 'undefined' && window.__KOLOBOK_GEMINI_KEY) {
+    const w = String(window.__KOLOBOK_GEMINI_KEY).trim();
+    if (w) return w;
+  }
+  if (typeof globalThis !== 'undefined' && globalThis.__KOLOBOK_GEMINI_BUILD_KEY__) {
+    const b = String(globalThis.__KOLOBOK_GEMINI_BUILD_KEY__).trim();
+    if (b) return b;
+  }
   const c = geminiCfg();
   if (c.apiKey && String(c.apiKey).trim()) return String(c.apiKey).trim();
-  if (typeof window !== 'undefined' && window.__KOLOBOK_GEMINI_KEY) {
-    return String(window.__KOLOBOK_GEMINI_KEY).trim();
-  }
   return '';
 }
 
@@ -67,9 +72,12 @@ function rankVisionModels(names) {
 }
 
 async function fetchAvailableGeminiModels(apiKey) {
+  const c = geminiCfg();
   const res = await withTimeout(
-    fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+    fetchWithRetry(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+      undefined,
+      c
     ),
     12000,
     'gemini-list-timeout'
@@ -211,8 +219,46 @@ function findFoodLoose(label) {
 const GEMINI_RATE_LIMIT =
   'Слишком много запросов к Gemini. Подожди 30–60 сек. Если уже оплатил — выпусти новый API key в том же проекте, где включён биллинг (aistudio.google.com/apikey).';
 
+const GEMINI_API_DISABLED =
+  'Ключ не от AI Studio: Gemini API выключен. Создай ключ на aistudio.google.com/apikey (проект с оплатой).';
+
+const GEMINI_KEY_LEAKED =
+  'Старый ключ Gemini заблокирован (попал в открытый GitHub). В AI Studio удали его, создай новый → js/secrets.local.js → npm run build → git push.';
+
+function isGeminiApiDisabled(_res, errText) {
+  const msg = String(errText || '').toLowerCase();
+  return (
+    msg.includes('service_disabled') ||
+    msg.includes('api_key_service_blocked') ||
+    msg.includes('has not been used in project') ||
+    msg.includes('generativelanguage.googleapis.com') && msg.includes('disabled')
+  );
+}
+
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isNetworkError(err) {
+  const s = `${err?.code || ''} ${err?.cause?.code || ''} ${err?.message || ''}`;
+  return /ECONNRESET|ETIMEDOUT|ENOTFOUND|Failed to fetch|fetch failed|network/i.test(
+    s
+  );
+}
+
+async function fetchWithRetry(url, options, cfg) {
+  const tries = cfg.networkRetries ?? 3;
+  let last;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      last = err;
+      if (!isNetworkError(err) || i === tries - 1) throw err;
+      await sleep(cfg.networkRetryMs ?? 1800 * (i + 1));
+    }
+  }
+  throw last;
 }
 
 function isModelUnavailable(res, errText) {
@@ -269,7 +315,9 @@ export async function recognizeFoodWithGemini(file) {
       let errText = '';
       for (let attempt = 0; attempt < 2; attempt++) {
         res = await withTimeout(
-          fetch(url, {
+          fetchWithRetry(
+            url,
+            {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -286,7 +334,9 @@ export async function recognizeFoodWithGemini(file) {
                 },
               ],
             }),
-          }),
+            },
+            c
+          ),
           c.timeoutMs ?? 28000,
           'gemini-timeout'
         );
@@ -309,8 +359,16 @@ export async function recognizeFoodWithGemini(file) {
           throw new Error(GEMINI_RATE_LIMIT);
         }
 
+        if (res.status === 403 && /leaked/i.test(errText)) {
+          throw new Error(GEMINI_KEY_LEAKED);
+        }
+
+        if (res.status === 403 && isGeminiApiDisabled(res, errText)) {
+          throw new Error(GEMINI_API_DISABLED);
+        }
+
         if (isModelUnavailable(res, errText)) {
-          lastErr = new Error(`Модель недоступна: ${model}`);
+          lastErr = new Error('GEMINI_ALL_MODELS_UNAVAILABLE');
           continue;
         }
 
@@ -353,18 +411,34 @@ export async function recognizeFoodWithGemini(file) {
         model,
       };
     } catch (err) {
-      if (String(err?.message || '') === GEMINI_RATE_LIMIT) {
+      const fatal = String(err?.message || '');
+      if (
+        fatal === GEMINI_RATE_LIMIT ||
+        fatal === GEMINI_API_DISABLED ||
+        fatal === GEMINI_KEY_LEAKED
+      ) {
         throw err;
+      }
+      if (isNetworkError(err)) {
+        throw new Error(
+          'Нет связи с Google — попробуй ещё раз (интернет/VPN)'
+        );
       }
       lastErr = err;
     }
   }
 
   console.warn('Колобок Gemini: модели', tried.join(', '));
+  if (lastErr?.message === 'GEMINI_ALL_MODELS_UNAVAILABLE') {
+    throw new Error(
+      'Gemini не ответил (ключ или модели). Проверь новый ключ: node scripts/gemini-check.mjs'
+    );
+  }
+
   throw (
     lastErr ||
     new Error(
-      'Нет доступной vision-модели Gemini. В AI Studio открой Playground → модель с Flash (не TTS).'
+      'Gemini не ответил. Создай новый ключ в AI Studio и собери: npm run build'
     )
   );
 }

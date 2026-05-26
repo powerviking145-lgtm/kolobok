@@ -1,7 +1,7 @@
 /**
- * Скопируй в secrets.local.js (в .gitignore) и вставь ключ с https://aistudio.google.com/apikey
- * В index.html перед boot (опционально):
- * <script src="js/secrets.local.js"></script>
- * window.__KOLOBOK_GEMINI_KEY = '...';
+ * Скопируй этот файл в js/secrets.local.js (уже в .gitignore)
+ * Ключ: https://aistudio.google.com/apikey → Create API key
  */
-export const GEMINI_API_KEY = '';
+/** @type {Window & typeof globalThis} */
+// eslint-disable-next-line no-unused-vars
+window.__KOLOBOK_GEMINI_KEY = 'AIzaSyВСТАВЬ_СЮДА_НОВЫЙ_КЛЮЧ';
