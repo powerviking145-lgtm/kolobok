@@ -62,14 +62,22 @@ function readGeminiKeyForBuild() {
   return m?.[1]?.trim() || '';
 }
 
-const geminiBuildKey = readGeminiKeyForBuild();
+function foodPhotoUsesProxy() {
+  const configSrc = fs.readFileSync(path.join(root, 'js', 'config.js'), 'utf8');
+  return /proxyUrl:\s*[\n\r\s]*['"]https?:\/\//.test(configSrc);
+}
+
+/** Ключ в бандл не кладём — иначе GitHub Pages = утечка. Фото-ИИ только через Firebase proxy. */
+const geminiBuildKey = foodPhotoUsesProxy() ? '' : readGeminiKeyForBuild();
 const geminiBanner = geminiBuildKey
   ? `globalThis.__KOLOBOK_GEMINI_BUILD_KEY__=${JSON.stringify(geminiBuildKey)};`
   : '';
 
-if (!geminiBuildKey) {
+if (foodPhotoUsesProxy()) {
+  console.log('Gemini: ключ не в бандле (proxyUrl) — запросы через Firebase');
+} else if (!geminiBuildKey) {
   console.warn('');
-  console.warn('⚠ Нет Gemini-ключа: js/secrets.local.js → npm run build (фото-ИИ в TG не заработает)');
+  console.warn('⚠ Нет Gemini-ключа: js/secrets.local.js или включи proxyUrl в config');
   console.warn('');
 }
 

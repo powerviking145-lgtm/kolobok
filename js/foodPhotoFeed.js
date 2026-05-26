@@ -99,14 +99,14 @@ function formatFeedError(message) {
   if (/has not been used in project|api_key_service_blocked/i.test(msg)) {
     return 'Gemini API выключен для этого ключа. Нужен ключ с aistudio.google.com/apikey (проект с оплатой).';
   }
-  if (/leaked|заблокирован.*github/i.test(msg)) {
-    return 'Ключ Gemini заблокирован — он был в открытом коде. Создай новый в AI Studio, вставь в secrets.local.js, npm run build, push.';
+  if (/leaked|заблокирован|reported as leaked/i.test(msg)) {
+    return 'Ключ Gemini заблокирован Google. Новый ключ только в Firebase: Cloud Shell → firebase functions:secrets:set GEMINI_API_KEY → Y. В git и npm build ключ не клади.';
   }
   if (/Модель недоступна|GEMINI_ALL_MODELS|не ответил/i.test(msg)) {
     return 'Gemini не смог обработать фото. Нужен новый API key (старый мог заблокироваться) — aistudio.google.com/apikey';
   }
   if (msg.includes('403')) {
-    return 'Ключ Gemini не принят. Новый ключ: aistudio.google.com/apikey → secrets.local.js → npm run build';
+    return 'Ключ Gemini не принят. Новый: aistudio.google.com/apikey → Firebase secrets:set GEMINI_API_KEY (см. FOOD_PHOTO.md)';
   }
   return msg.length > 220 ? `${msg.slice(0, 220)}…` : msg;
 }
@@ -295,6 +295,9 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     const backdrop = modal.querySelector('#food-photo-backdrop');
     const btnDone = modal.querySelector('#food-photo-done');
     const btnErrorClose = modal.querySelector('#food-photo-error-close');
+    const cameraBtn = modal.querySelector('#food-photo-camera-btn');
+    const galleryBtn = modal.querySelector('#food-photo-gallery-btn');
+    const fileInput = modal.querySelector('#food-photo-file');
 
     closeBtn?.addEventListener('click', close);
     backdrop?.addEventListener('click', close);
@@ -304,12 +307,20 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     });
     btnErrorClose?.addEventListener('click', close);
 
-    modal.querySelectorAll('.food-photo-file-input').forEach((input) => {
-      input.addEventListener('change', () => {
-        const file = input.files?.[0];
-        input.value = '';
-        if (file) onFileSelected(file);
-      });
+    function openPicker({ capture } = {}) {
+      if (!fileInput) return;
+      if (capture) fileInput.setAttribute('capture', capture);
+      else fileInput.removeAttribute('capture');
+      fileInput.click();
+    }
+
+    cameraBtn?.addEventListener('click', () => openPicker({ capture: 'environment' }));
+    galleryBtn?.addEventListener('click', () => openPicker());
+
+    fileInput?.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      fileInput.value = '';
+      if (file) onFileSelected(file);
     });
   }
 

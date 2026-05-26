@@ -254,14 +254,9 @@
           <div class="receipt-scan-modal__state" data-food-photo-state="pick">
             <p class="receipt-scan-modal__pick-text">Сфоткай тарелку или продукт — колобок прокомментирует и поест.</p>
             <div class="receipt-scan-modal__pick-actions food-photo-pick-actions">
-              <label class="btn btn--primary food-photo-file-label" id="food-photo-camera">
-                📸 Снять
-                <input type="file" class="food-photo-file-input" accept="image/*" capture="environment" />
-              </label>
-              <label class="btn btn--secondary food-photo-file-label" id="food-photo-gallery">
-                🖼 Из галереи
-                <input type="file" class="food-photo-file-input" accept="image/*" />
-              </label>
+              <button type="button" class="btn btn--primary" id="food-photo-camera-btn">📸 Снять</button>
+              <button type="button" class="btn btn--secondary" id="food-photo-gallery-btn">🖼 Из галереи</button>
+              <input type="file" id="food-photo-file" accept="image/*" hidden aria-hidden="true" />
             </div>
           </div>
 
@@ -937,7 +932,8 @@
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="js/secrets.local.js"></script>
+  <!-- secrets.local.js только локально (gitignore); в TG не нужен — фото через Firebase proxy -->
+  <script src="js/secrets.local.js" onerror="void 0"></script>
   <script>
     (async function () {
       var TG_SLOW_TIPS = [
@@ -1029,7 +1025,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '135';
+      var BUILD = '137';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

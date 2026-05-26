@@ -9,6 +9,17 @@ function getFoodList() {
 }
 
 function resolveApiKey() {
+  const c = geminiCfg();
+  const useProxy = String(c.proxyUrl || '').trim();
+
+  if (useProxy) {
+    if (typeof window !== 'undefined' && window.__KOLOBOK_GEMINI_KEY) {
+      const w = String(window.__KOLOBOK_GEMINI_KEY).trim();
+      if (w) return w;
+    }
+    return '';
+  }
+
   if (typeof window !== 'undefined' && window.__KOLOBOK_GEMINI_KEY) {
     const w = String(window.__KOLOBOK_GEMINI_KEY).trim();
     if (w) return w;
@@ -17,7 +28,6 @@ function resolveApiKey() {
     const b = String(globalThis.__KOLOBOK_GEMINI_BUILD_KEY__).trim();
     if (b) return b;
   }
-  const c = geminiCfg();
   if (c.apiKey && String(c.apiKey).trim()) return String(c.apiKey).trim();
   return '';
 }
@@ -225,7 +235,7 @@ const GEMINI_API_DISABLED =
   'Ключ не от AI Studio: Gemini API выключен. Создай ключ на aistudio.google.com/apikey (проект с оплатой).';
 
 const GEMINI_KEY_LEAKED =
-  'Старый ключ Gemini заблокирован (попал в открытый GitHub). В AI Studio удали его, создай новый → js/secrets.local.js → npm run build → git push.';
+  'Ключ Gemini заблокирован Google (был в открытом коде). Новый: aistudio.google.com/apikey → только Firebase: firebase functions:secrets:set GEMINI_API_KEY → Y. В git и npm build не клади.';
 
 const GEMINI_LOCATION =
   'Gemini из твоего региона напрямую недоступен. Нужен прокси Firebase — см. FOOD_PHOTO.md (раздел «Прокси»).';
