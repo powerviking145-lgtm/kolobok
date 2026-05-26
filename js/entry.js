@@ -1,4 +1,4 @@
-const BUILD = window.__KOLOBOK_BUILD || '114';
+const BUILD = window.__KOLOBOK_BUILD || '116';
 
 const stylesheet = document.getElementById('app-stylesheet');
 if (stylesheet) {

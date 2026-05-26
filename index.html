@@ -17,6 +17,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
+  <meta name="kolobok-build" content="116">
 
   <title>Колобок</title>
 
@@ -933,35 +934,12 @@
       base.href = root;
       document.head.insertBefore(base, document.head.firstChild);
 
-      var BUILD = '114';
-      try {
-        var buildRes = await fetch(root + 'js/build.js?t=' + Date.now(), { cache: 'no-store' });
-        var buildText = await buildRes.text();
-        var buildMatch = buildText.match(/BUILD\s*=\s*['"](\d+)['"]/);
-        if (buildMatch) BUILD = buildMatch[1];
-      } catch (e) {}
+      var metaBuild = document.querySelector('meta[name="kolobok-build"]');
+      var BUILD = (metaBuild && metaBuild.getAttribute('content')) || '116';
 
-      window.__KOLOBOK_BUILD = BUILD;
-
-      var lastBuild = sessionStorage.getItem('kolobok-last-build');
-      if (lastBuild && lastBuild !== BUILD) {
-        sessionStorage.setItem('kolobok-last-build', BUILD);
-        location.reload();
-        return;
-      }
-      sessionStorage.setItem('kolobok-last-build', BUILD);
-
-      if ('serviceWorker' in navigator) {
-        try {
-          await navigator.serviceWorker.register(root + 'sw.js?v=' + BUILD, { scope: root });
-        } catch (e) {}
-      }
-
-      var link = document.getElementById('app-stylesheet');
-      if (link) link.href = root + 'style.css?v=' + BUILD;
-
-      setBoot(6);
+      setBoot(8);
       window.__kolobokBootProgress = setBoot;
+      window.__KOLOBOK_BUILD = BUILD;
 
       var tg = window.Telegram && window.Telegram.WebApp;
       if (tg) {
@@ -975,6 +953,43 @@
         tg &&
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
+
+      if (isTg && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) {
+            r.unregister();
+          });
+        });
+      } else if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register(root + 'sw.js?v=' + BUILD).catch(function () {});
+      }
+
+      var link = document.getElementById('app-stylesheet');
+      if (link) link.href = root + 'style.css?v=' + BUILD;
+
+      try {
+        var buildRes = await Promise.race([
+          fetch(root + 'js/build.js?t=' + Date.now(), { cache: 'no-store' }),
+          new Promise(function (_, reject) {
+            window.setTimeout(function () {
+              reject(new Error('build-timeout'));
+            }, 2500);
+          }),
+        ]);
+        var buildText = await buildRes.text();
+        var buildMatch = buildText.match(/BUILD\s*=\s*['"](\d+)['"]/);
+        if (buildMatch) BUILD = buildMatch[1];
+        window.__KOLOBOK_BUILD = BUILD;
+        if (link) link.href = root + 'style.css?v=' + BUILD;
+      } catch (e) {}
+
+      var lastBuild = sessionStorage.getItem('kolobok-last-build');
+      if (lastBuild && lastBuild !== BUILD) {
+        sessionStorage.setItem('kolobok-last-build', BUILD);
+        location.reload();
+        return;
+      }
+      sessionStorage.setItem('kolobok-last-build', BUILD);
 
       document.getElementById('boot-retry-btn')?.addEventListener('click', function () {
         location.reload();
