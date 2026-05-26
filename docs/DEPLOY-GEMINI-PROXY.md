@@ -19,6 +19,16 @@ git push
 1. Открой: https://console.cloud.google.com/cloudshell?project=kolobok-6032e  
 2. Внизу откроется терминал Linux в браузере (это не твой PowerShell).
 
+## Шаг 2.5 — тариф Blaze (обязательно)
+
+Ошибка *«must be on the Blaze plan»* — это **биллинг Firebase**, не твои $25 в AI Studio.
+
+1. Открой: https://console.firebase.google.com/project/kolobok-6032e/usage/details  
+2. **Upgrade to Blaze** (привяжи карту).  
+3. Для Колобка обычно укладываешься в **бесплатные лимиты** Cloud Functions (мало запросов в день). Платишь только если лимит превысишь.
+
+Без Blaze нельзя: секреты, вызов Gemini с сервера, деплой `geminiFoodPhoto`.
+
 ## Шаг 3 — команды в Cloud Shell
 
 Подставь свой репозиторий, если URL другой:

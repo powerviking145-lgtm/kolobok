@@ -41,8 +41,9 @@ Google отвечает `User location is not supported` — с телефона
 Кратко:
 
 1. `git push` с ПК (если git работает)  
-2. Открой https://console.cloud.google.com/cloudshell?project=kolobok-6032e  
-3. В терминале Cloud Shell: `git clone …` → `npm install` в `firebase/functions` → `firebase functions:secrets:set GEMINI_API_KEY` → `firebase deploy --only functions:geminiFoodPhoto`
+2. **Firebase → Blaze** (карта): https://console.firebase.google.com/project/kolobok-6032e/usage/details — иначе секреты и прокси не включатся ($25 Gemini — это другое)  
+3. Cloud Shell: https://console.cloud.google.com/cloudshell?project=kolobok-6032e  
+4. `git clone …` → `npm install` → `firebase functions:secrets:set GEMINI_API_KEY` → `firebase deploy --only functions:geminiFoodPhoto`
 
 С ПК (только если npm нормально ставится):
 
