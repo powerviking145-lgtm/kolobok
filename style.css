@@ -2631,6 +2631,16 @@ html.is-shop-hint-active #action-prompt {
   background: rgba(255, 255, 255, 0.12);
 }
 
+.menu-sheet__version {
+  margin: clamp(1rem, 4vw, 1.25rem) 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: clamp(0.7rem, 2.8vw, 0.8rem);
+  opacity: 0.55;
+  text-align: center;
+  color: #fff5e1;
+}
+
 .exit-modal__card {
   position: absolute;
   left: 50%;
@@ -3238,7 +3248,7 @@ html.is-lecture-active .speech-thought__dot {
   pointer-events: none;
   opacity: 0;
   z-index: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.32s ease;
   background: #241408;
 }
 

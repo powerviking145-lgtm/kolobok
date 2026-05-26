@@ -29,6 +29,9 @@ async function startApp() {
   primeTelegram();
   await waitForDom();
   primeTelegram();
+  if (typeof window.__kolobokHideFatal === 'function') {
+    window.__kolobokHideFatal();
+  }
   await import('./main.js');
 }
 

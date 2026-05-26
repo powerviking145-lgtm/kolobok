@@ -266,6 +266,11 @@ function initTopPanelChrome() {
     exitModal.setAttribute('aria-hidden', 'true');
   }
 
+  const versionEl = document.getElementById('menu-sheet-version');
+  if (versionEl) {
+    versionEl.textContent = `Версия ${CONFIG.build}`;
+  }
+
   if (menuList && tp.menuItems?.length) {
     menuList.innerHTML = tp.menuItems
       .map(
@@ -636,12 +641,16 @@ function assignClipToElement(videoEl, index, options = {}) {
   const { videoType } = CONFIG.kolobokHome;
 
   if (videoType) {
-    videoEl.innerHTML = '';
-    const source = document.createElement('source');
-    source.src = clip.src;
-    source.type = videoType;
-    videoEl.appendChild(source);
-  } else {
+    let source = videoEl.querySelector('source');
+    if (!source) {
+      source = document.createElement('source');
+      videoEl.appendChild(source);
+    }
+    if (source.getAttribute('src') !== clip.src) {
+      source.src = clip.src;
+      source.type = videoType;
+    }
+  } else if (videoEl.src !== clip.src) {
     videoEl.src = clip.src;
   }
 
@@ -735,6 +744,11 @@ function cutHomeVideos() {
   const incoming = homeVideo.buffer;
   if (!outgoing || !incoming) return;
 
+  const fadeMs = CONFIG.kolobokHome.videoCrossfadeMs ?? 280;
+
+  outgoing.classList.remove('is-front');
+  outgoing.classList.add('is-back', 'is-visible');
+
   incoming.classList.remove('is-back');
   incoming.classList.add('is-visible', 'is-front');
 
@@ -743,19 +757,12 @@ function cutHomeVideos() {
   homeVideo.prerolling = false;
   homeVideo.preloading = false;
 
-  const hideOutgoing = () => {
-    outgoing.classList.remove('is-visible', 'is-front');
+  window.setTimeout(() => {
+    outgoing.classList.remove('is-visible', 'is-back');
     outgoing.pause();
     outgoing.currentTime = 0;
-  };
-
-  if (incoming.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && !incoming.paused) {
-    requestAnimationFrame(() => requestAnimationFrame(hideOutgoing));
-  } else {
-    incoming.addEventListener('playing', hideOutgoing, { once: true });
-  }
-
-  assignClipToElement(outgoing, pickNextHomeVideoIndex()).catch(() => {});
+    assignClipToElement(outgoing, pickNextHomeVideoIndex()).catch(() => {});
+  }, fadeMs);
 }
 
 async function onHomeVideoEnded(e) {
@@ -1553,9 +1560,19 @@ function tickCriticalWarnings() {
   showPhrase(getCriticalWarnPhrase(low[0]), true);
 }
 
+function dismissBootFatalOverlay() {
+  const el = document.getElementById('boot-fatal-error');
+  if (el) el.classList.remove('is-visible');
+  window.__kolobokLaunched = true;
+  if (typeof window.__kolobokClearBootTimer === 'function') {
+    window.__kolobokClearBootTimer();
+  }
+}
+
 function forceHideBootLoader() {
   const root = document.getElementById('boot-loader');
   document.documentElement.classList.remove('boot-loading');
+  dismissBootFatalOverlay();
   if (!root) return;
   root.classList.add('is-done');
   root.setAttribute('aria-busy', 'false');

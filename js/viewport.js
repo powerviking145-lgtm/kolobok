@@ -12,11 +12,20 @@ function setViewportHeight() {
   document.documentElement.style.setProperty('--vh', `${vh}px`);
 }
 
-/** Реальный ландшафт на телефоне, без ложных срабатываний в TG Desktop / широком окне. */
+function isKeyboardOpen() {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+}
+
+/** Ландшафт по экрану устройства, не по сжатому viewport (клавиатура в TG). */
 export function isLandscapeBlocked() {
-  const vv = window.visualViewport;
-  const w = Math.round(vv?.width ?? window.innerWidth);
-  const h = Math.round(vv?.height ?? window.innerHeight);
+  if (isKeyboardOpen()) return false;
+  if (document.documentElement.classList.contains('is-onboarding-active')) return false;
+
+  const w = Math.round(window.screen.width);
+  const h = Math.round(window.screen.height);
 
   if (h >= w) return false;
 
@@ -91,6 +100,8 @@ export function initViewport() {
   window.addEventListener('resize', onResize);
   window.addEventListener('orientationchange', onResize);
   window.visualViewport?.addEventListener('resize', onResize);
+  document.addEventListener('focusin', onResize);
+  document.addEventListener('focusout', onResize);
 
   document.addEventListener('contextmenu', preventContextMenu);
   document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });

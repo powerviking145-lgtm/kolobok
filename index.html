@@ -16,7 +16,7 @@
 
   <title>Колобок</title>
 
-  <link rel="stylesheet" href="style.css?v=110" id="app-stylesheet">
+  <link rel="stylesheet" href="style.css?v=111" id="app-stylesheet">
   <link rel="preload" href="assets/kolobok/logo.png" as="image">
   <style>
     html, body { margin: 0; width: 100%; height: 100%; min-height: 100dvh; background: #1a1208; overflow: hidden; }
@@ -211,6 +211,8 @@
           <button type="button" class="menu-sheet__close" id="menu-sheet-close" aria-label="Закрыть">✕</button>
 
           <ul class="menu-sheet__list" id="menu-sheet-list"></ul>
+
+          <p class="menu-sheet__version" id="menu-sheet-version" aria-label="Версия игры"></p>
 
         </div>
 
@@ -952,21 +954,34 @@
         location.reload();
       });
 
-      var failTimer = window.setTimeout(function () {
-        if (!window.__kolobokLaunched) {
-          showFatal('Долго грузится. Нажми «Повторить» или закрой Mini App и открой снова.');
+      var failTimer = null;
+
+      function hideFatal() {
+        var box = document.getElementById('boot-fatal-error');
+        if (box) box.classList.remove('is-visible');
+        window.__kolobokLaunched = true;
+        if (failTimer) {
+          window.clearTimeout(failTimer);
+          failTimer = null;
         }
-      }, 18000);
+      }
+
+      window.__kolobokHideFatal = hideFatal;
+      window.__kolobokClearBootTimer = function () {
+        if (failTimer) {
+          window.clearTimeout(failTimer);
+          failTimer = null;
+        }
+      };
 
       function onFail(err) {
-        window.clearTimeout(failTimer);
+        window.__kolobokClearBootTimer();
         console.error('Колобок boot', err);
         showFatal('Не загрузилось: ' + (err && err.message ? err.message : 'ошибка модулей'));
       }
 
-      function onReady() {
-        window.__kolobokLaunched = true;
-        window.clearTimeout(failTimer);
+      function onMainLoaded() {
+        hideFatal();
       }
 
       if (isTg) {
@@ -981,14 +996,12 @@
             return import(root + 'js/main.js');
           })
           .then(function (m) {
+            onMainLoaded();
             return m.launchGame();
           })
-          .then(onReady)
           .catch(onFail);
       } else {
-        import(root + 'js/entry.js')
-          .then(onReady)
-          .catch(onFail);
+        import(root + 'js/entry.js').catch(onFail);
       }
     })();
   </script>
