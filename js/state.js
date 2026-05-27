@@ -131,13 +131,18 @@ function normalizeFeedLog(raw) {
 
 function migrateStatsTo80Base(target, savedVersion) {
   if (savedVersion >= 8) return;
-  const oldAbs = percentToAbsolute(40);
+  bumpLegacy40StatsToStart(target);
+}
+
+/** Старые сейвы: 48/120 (=40% HUD) → старт 80%. Безопасно повторять. */
+function bumpLegacy40StatsToStart(target) {
+  const legacyAbs = percentToAbsolute(40);
   const newAbs = percentToAbsolute(statStartPercent());
   STAT_KEYS.forEach((key) => {
     const entry = target.stats?.[key];
-    if (!entry) return;
-    const cur = entry.current ?? oldAbs;
-    if (cur === oldAbs || cur === 40) {
+    if (!entry || (entry.level ?? 0) > 0) return;
+    const cur = entry.current ?? legacyAbs;
+    if (cur === legacyAbs || cur === 40) {
       entry.current = clampStat(key, newAbs, target);
     }
   });
@@ -243,6 +248,7 @@ export function normalizeState(raw = {}) {
   migrateFlatStats(raw, merged);
   migrateStatsToPercentScale(merged, savedVersion);
   migrateStatsTo80Base(merged, savedVersion);
+  bumpLegacy40StatsToStart(merged);
 
   if (raw.houses && typeof raw.houses === 'object') {
     const owned = Array.isArray(raw.houses.owned) ? raw.houses.owned : defaultHouses().owned;
@@ -556,6 +562,10 @@ export const gameState = {
 
   getStatDisplayPercent(statKey) {
     return getStatDisplayPercentValue(getStatCurrent(statKey, state));
+  },
+
+  getDecayTickMs() {
+    return getHomeDecayTickMs();
   },
 
   fillStatToMax(statKey) {

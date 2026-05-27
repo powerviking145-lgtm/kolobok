@@ -1088,10 +1088,11 @@ function pauseTimers() {
 }
 
 function resumeGameTimersOnly() {
-  if (!decayTimerId) {
-    const homeTickMs = Math.round(CONFIG.statDecay.tickMs * CONFIG.statDecay.homeSlowdown);
-    decayTimerId = setInterval(() => gameState.tickDecay(), homeTickMs);
+  if (decayTimerId) {
+    clearInterval(decayTimerId);
+    decayTimerId = null;
   }
+  decayTimerId = setInterval(() => gameState.tickDecay(), gameState.getDecayTickMs());
   if (!phraseTimerId) {
     phraseTimerId = setInterval(() => {
       if (!isHomePhraseBlocked()) {
@@ -1460,8 +1461,7 @@ function handleFoodCollect({
 }
 
 function startTimers() {
-  const homeTickMs = Math.round(CONFIG.statDecay.tickMs * CONFIG.statDecay.homeSlowdown);
-  decayTimerId = setInterval(() => gameState.tickDecay(), homeTickMs);
+  decayTimerId = setInterval(() => gameState.tickDecay(), gameState.getDecayTickMs());
   phraseTimerId = setInterval(() => rotateHomePhrase(), CONFIG.timers.phraseRotateMs);
   autosaveTimerId = setInterval(() => gameState.save(), CONFIG.timers.autosaveMs);
   criticalWarnTimerId = setInterval(tickCriticalWarnings, 5000);
