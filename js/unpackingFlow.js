@@ -105,7 +105,12 @@ export function createUnpackingFlow({ elements, callbacks }) {
       if (value) gameState.changeStat(key, value);
     });
 
-    callbacks.onStatsApplied?.({ before, boosts });
+    const highlightKeys = Object.entries(boosts)
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 1)
+      .map(([k]) => k);
+    callbacks.onStatsApplied?.({ before, boosts, highlightKeys });
     showStatFloats(boosts);
   }
 

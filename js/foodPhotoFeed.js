@@ -246,7 +246,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     gameState.recordPhotoFeed?.(food);
     gameState.recordFoodInteraction?.();
     gameState.save();
-    callbacks.onStatsApplied?.({ before, boosts });
+    callbacks.onStatsApplied?.({ before, boosts, food });
   }
 
   function showResult(food, { customComment } = {}) {
