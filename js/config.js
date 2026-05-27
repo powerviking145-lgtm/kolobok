@@ -153,7 +153,23 @@ export const CONFIG = {
     thirst: 1,
     health: 1,
     mood: 1,
-    runMultiplier: 3,
+    runMultiplier: 1.8,
+    /** Оффлайн-декей: максимум сколько часов считаем за один вход. */
+    offlineMaxHours: 168,
+  },
+
+  /**
+   * Гибридное здоровье:
+   * - базово тянется к среднему hunger/thirst;
+   * - при двух нулях дополнительно штрафуется раз в 30 минут.
+   */
+  healthHybrid: {
+    enabled: true,
+    /** На сколько пунктов health за тик тянется к среднему(hunger, thirst). */
+    syncStepPerTick: 1,
+    /** Когда hunger=0 и thirst=0 — штраф раз в 30 мин. */
+    exhaustionPenaltyEveryMs: 30 * 60 * 1000,
+    exhaustionPenaltyAmount: 1,
   },
 
   timers: {
@@ -617,6 +633,19 @@ export const CONFIG = {
     toastMs: 2800,
     /** Пока «Сыт» — чаще подсказки при тапе по еде на сцене */
     nutritionTipChance: 0.4,
+  },
+
+  /** Ядро петли: сперва накорми + напои, потом мини-активности выгоднее. */
+  feedLoop: {
+    /** На проде ограничим 3/день; сейчас для теста без лимита. */
+    testUnlimitedPhotoFeeds: true,
+    dailyPhotoFeedLimit: 3,
+    /** Что считаем «напоил» для суточного статуса. */
+    drinkFoodIds: ['water', 'tea', 'juice', 'milk', 'coffee', 'energy'],
+    /** Если за день и накормил, и напоил — множитель очков в тап/свайп/спавн. */
+    fullCarePointsMultiplier: 1.5,
+    /** И небольшой бонус к статам за игру в этом состоянии. */
+    fullCareTapStatBonus: 1,
   },
 
   purchase: {

@@ -106,6 +106,29 @@ function defaultTutorials() {
   };
 }
 
+function defaultFeedLog() {
+  return {
+    dayKey: todayKey(),
+    foodToday: 0,
+    drinkToday: 0,
+    totalToday: 0,
+    lastType: null,
+  };
+}
+
+function normalizeFeedLog(raw) {
+  const def = defaultFeedLog();
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const day = src.dayKey === def.dayKey ? src.dayKey : def.dayKey;
+  return {
+    dayKey: day,
+    foodToday: day === def.dayKey ? Math.max(0, Math.floor(src.foodToday ?? 0)) : 0,
+    drinkToday: day === def.dayKey ? Math.max(0, Math.floor(src.drinkToday ?? 0)) : 0,
+    totalToday: day === def.dayKey ? Math.max(0, Math.floor(src.totalToday ?? 0)) : 0,
+    lastType: src.lastType === 'food' || src.lastType === 'drink' ? src.lastType : null,
+  };
+}
+
 function migrateStatsToPercentScale(target, savedVersion) {
   if (savedVersion >= 7) return;
 
@@ -188,6 +211,7 @@ export function normalizeState(raw = {}) {
     lastPlayed: Date.now(),
     badFoodTipDay: null,
     foodInteractCount: 0,
+    feedLog: defaultFeedLog(),
     cloud: {
       telegramId: null,
       telegramUsername: null,
@@ -233,6 +257,7 @@ export function normalizeState(raw = {}) {
   if (raw.foodInteractCount != null) {
     merged.foodInteractCount = Math.max(0, Math.floor(raw.foodInteractCount));
   }
+  merged.feedLog = normalizeFeedLog(raw.feedLog);
 
   return merged;
 }
@@ -259,6 +284,7 @@ function flattenForUi(src = state) {
     lastPlayed: src.lastPlayed,
     badFoodTipDay: src.badFoodTipDay,
     foodInteractCount: src.foodInteractCount ?? 0,
+    feedLog: normalizeFeedLog(src.feedLog),
   };
 
   STAT_KEYS.forEach((key) => {
@@ -293,10 +319,74 @@ function getHomeDecayPerTick() {
   return rates;
 }
 
+function getHomeDecayTickMs() {
+  const d = CONFIG.statDecay ?? {};
+  return Math.max(1000, Math.round((d.tickMs ?? 10000) * (d.homeSlowdown ?? 1)));
+}
+
 function ensureDecayRemainder() {
   if (!state._decayRemainder) {
     state._decayRemainder = { hunger: 0, thirst: 0, health: 0, mood: 0 };
   }
+}
+
+function ensureHealthHybridRuntime() {
+  if (!state._healthHybridRuntime) {
+    state._healthHybridRuntime = {
+      lastTickTs: Date.now(),
+      exhaustionAccumMs: 0,
+    };
+  }
+}
+
+function applyHealthHybridAfterDecay() {
+  const cfg = CONFIG.healthHybrid ?? {};
+  if (cfg.enabled === false) return false;
+  ensureHealthHybridRuntime();
+
+  let changed = false;
+  const runtime = state._healthHybridRuntime;
+  const now = Date.now();
+  const dt = Math.max(0, now - (runtime.lastTickTs || now));
+  runtime.lastTickTs = now;
+
+  const hunger = getStatCurrent('hunger', state);
+  const thirst = getStatCurrent('thirst', state);
+  const target = Math.round((hunger + thirst) / 2);
+  const syncStep = Math.max(0, Math.floor(cfg.syncStepPerTick ?? 1));
+
+  if (syncStep > 0) {
+    const currentHealth = getStatCurrent('health', state);
+    if (currentHealth < target) {
+      state.stats.health.current = clampStat('health', currentHealth + syncStep, state);
+      changed = true;
+    } else if (currentHealth > target) {
+      state.stats.health.current = clampStat('health', currentHealth - syncStep, state);
+      changed = true;
+    }
+  }
+
+  const starving = hunger <= 0 && thirst <= 0;
+  if (!starving) {
+    runtime.exhaustionAccumMs = 0;
+    return changed;
+  }
+
+  runtime.exhaustionAccumMs += dt;
+  const everyMs = Math.max(60_000, Number(cfg.exhaustionPenaltyEveryMs) || 30 * 60 * 1000);
+  const penaltyAmount = Math.max(1, Math.floor(cfg.exhaustionPenaltyAmount ?? 1));
+  const hits = Math.floor(runtime.exhaustionAccumMs / everyMs);
+  if (hits > 0) {
+    runtime.exhaustionAccumMs -= hits * everyMs;
+    state.stats.health.current = clampStat(
+      'health',
+      getStatCurrent('health', state) - hits * penaltyAmount,
+      state
+    );
+    changed = true;
+  }
+
+  return changed;
 }
 
 function applyDecayTick(multiplier = 1) {
@@ -314,10 +404,77 @@ function applyDecayTick(multiplier = 1) {
     }
   });
 
+  if (applyHealthHybridAfterDecay()) {
+    changed = true;
+  }
+
   if (changed) emitChange();
 }
 
+function applyOfflineDecay(elapsedMs) {
+  const ms = Math.max(0, Number(elapsedMs) || 0);
+  if (!ms) return null;
+  ensureDecayRemainder();
+
+  const tickMs = getHomeDecayTickMs();
+  const ticks = ms / tickMs;
+  if (ticks <= 0) return null;
+
+  const rates = getHomeDecayPerTick();
+  let changed = false;
+  const drops = { hunger: 0, thirst: 0, health: 0, mood: 0 };
+
+  STAT_DECAY_KEYS.forEach((key) => {
+    const drop = Math.floor((rates[key] ?? 0) * ticks);
+    if (drop > 0) {
+      state.stats[key].current = clampStat(key, state.stats[key].current - drop, state);
+      drops[key] += drop;
+      changed = true;
+    }
+  });
+
+  const hc = CONFIG.healthHybrid ?? {};
+  if (hc.enabled !== false) {
+    const hunger = getStatCurrent('hunger', state);
+    const thirst = getStatCurrent('thirst', state);
+    if (hunger <= 0 && thirst <= 0) {
+      const everyMs = Math.max(
+        60_000,
+        Number(hc.exhaustionPenaltyEveryMs) || 30 * 60 * 1000
+      );
+      const amount = Math.max(1, Math.floor(hc.exhaustionPenaltyAmount ?? 1));
+      const hits = Math.floor(ms / everyMs);
+      if (hits > 0) {
+        const hpLoss = hits * amount;
+        state.stats.health.current = clampStat(
+          'health',
+          getStatCurrent('health', state) - hpLoss,
+          state
+        );
+        drops.health += hpLoss;
+        changed = true;
+      }
+    }
+  }
+
+  if (!changed) return null;
+  return { elapsedMs: ms, drops };
+}
+
+function applyOfflineProgressSinceLastPlayed() {
+  const last = Number(state.lastPlayed) || 0;
+  if (!last) return null;
+
+  const elapsed = Date.now() - last;
+  if (!Number.isFinite(elapsed) || elapsed <= 0) return null;
+
+  const maxHours = Math.max(1, Math.floor(CONFIG.statDecay?.offlineMaxHours ?? 168));
+  const cappedElapsed = Math.min(elapsed, maxHours * 60 * 60 * 1000);
+  return applyOfflineDecay(cappedElapsed);
+}
+
 let state = createDefaultState();
+let lastOfflineDecayReport = null;
 
 function emitChange() {
   eventBus.emit('state:changed', gameState.get());
@@ -343,6 +500,22 @@ export const gameState = {
 
   getStars() {
     return gameState.getTotalScore();
+  },
+
+  getDailyFeedStatus() {
+    state.feedLog = normalizeFeedLog(state.feedLog);
+    return {
+      ...state.feedLog,
+      isFed: (state.feedLog.foodToday ?? 0) > 0,
+      isWatered: (state.feedLog.drinkToday ?? 0) > 0,
+      isFullyServed: (state.feedLog.foodToday ?? 0) > 0 && (state.feedLog.drinkToday ?? 0) > 0,
+    };
+  },
+
+  consumeOfflineDecayReport() {
+    const report = lastOfflineDecayReport;
+    lastOfflineDecayReport = null;
+    return report;
   },
 
   getStatMax(statKey) {
@@ -380,6 +553,10 @@ export const gameState = {
       }
 
       state = normalizeState(saved);
+      lastOfflineDecayReport = applyOfflineProgressSinceLastPlayed();
+      if (lastOfflineDecayReport) {
+        gameState.save();
+      }
       return true;
     } catch {
       state = createDefaultState();
@@ -390,7 +567,7 @@ export const gameState = {
   save() {
     state.saveVersion = CONFIG.saveVersion;
     state.lastPlayed = Date.now();
-    const { _decayRemainder, cloud, ...payload } = state;
+    const { _decayRemainder, _healthHybridRuntime, cloud, ...payload } = state;
     localStorage.setItem(CONFIG.storageKey, JSON.stringify(payload));
     eventBus.emit('state:saved', gameState.get());
   },
@@ -474,6 +651,18 @@ export const gameState = {
 
   recordFoodInteraction() {
     state.foodInteractCount = Math.max(0, (state.foodInteractCount || 0) + 1);
+    emitChange();
+  },
+
+  recordPhotoFeed(food = null) {
+    state.feedLog = normalizeFeedLog(state.feedLog);
+    const drinkIds = CONFIG.feedLoop?.drinkFoodIds ?? [];
+    const id = String(food?.id ?? '').toLowerCase();
+    const isDrink = !!food?.thirstPriority || drinkIds.includes(id);
+    state.feedLog.totalToday += 1;
+    if (isDrink) state.feedLog.drinkToday += 1;
+    else state.feedLog.foodToday += 1;
+    state.feedLog.lastType = isDrink ? 'drink' : 'food';
     emitChange();
   },
 

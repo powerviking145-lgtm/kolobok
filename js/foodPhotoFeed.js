@@ -232,6 +232,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     if (moodBonus) gameState.changeStat('mood', moodBonus);
     const pts = cfg().tapScorePoints ?? 2;
     if (pts) gameState.addTapScore(pts);
+    gameState.recordPhotoFeed?.(food);
     gameState.recordFoodInteraction?.();
     gameState.save();
     callbacks.onStatsApplied?.();

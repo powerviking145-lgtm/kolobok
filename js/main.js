@@ -379,6 +379,40 @@ function showHomeToast(text) {
   }, hideMs);
 }
 
+function formatAbsenceTime(ms) {
+  const totalMin = Math.max(1, Math.round(ms / 60000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h <= 0) return `${m}м`;
+  if (m <= 0) return `${h}ч`;
+  return `${h}ч ${m}м`;
+}
+
+function buildOfflineDecayToast(report) {
+  if (!report) return '';
+  const d = report.drops || {};
+  const parts = [];
+  if (d.hunger > 0) parts.push(`сытость −${d.hunger}`);
+  if (d.thirst > 0) parts.push(`жажда −${d.thirst}`);
+  if (d.health > 0) parts.push(`здоровье −${d.health}`);
+  if (!parts.length) return '';
+  return `Пока тебя не было (${formatAbsenceTime(report.elapsedMs)}), колобок оголодал: ${parts.join(', ')}.`;
+}
+
+function isPhotoFeedLimitedNow() {
+  const loop = CONFIG.feedLoop ?? {};
+  if (loop.testUnlimitedPhotoFeeds) return false;
+  const cap = Math.max(0, Math.floor(loop.dailyPhotoFeedLimit ?? 0));
+  if (!cap) return false;
+  const status = gameState.getDailyFeedStatus?.();
+  return (status?.totalToday ?? 0) >= cap;
+}
+
+function getPhotoFeedLimitToast() {
+  const cap = Math.max(1, Math.floor(CONFIG.feedLoop?.dailyPhotoFeedLimit ?? 3));
+  return `На сегодня лимит фото-корма (${cap}) — колобок говорит «сыт, бро». Завтра продолжим.`;
+}
+
 function stopFeedCooldownTicker() {
   if (feedCooldownTimerId) {
     window.clearInterval(feedCooldownTimerId);
@@ -1215,7 +1249,10 @@ function kolobokEatAnim() {
 
 function resolveFoodPoints(food) {
   if (food.kind === 'bad') return 0;
-  return CONFIG.homeFoods.good?.points ?? 1;
+  const base = CONFIG.homeFoods.good?.points ?? 1;
+  const status = gameState.getDailyFeedStatus?.();
+  const mul = status?.isFullyServed ? (CONFIG.feedLoop?.fullCarePointsMultiplier ?? 1) : 1;
+  return Math.max(0, Math.round(base * mul));
 }
 
 /** +1 к каждому стату за каждые 1000 очков от еды (суммарно по tapScore). */
@@ -1348,12 +1385,22 @@ function performStageTap(clientX, clientY) {
   ui.kolobok?.classList.add('is-tap-smile');
   window.setTimeout(() => ui.kolobok?.classList.remove('is-tap-smile'), 400);
   const emoji = TAP_EMOJIS[Math.floor(Math.random() * TAP_EMOJIS.length)];
-  const points = tapFx?.perform(clientX, clientY - 30, {
+  const basePoints = tapFx?.perform(clientX, clientY - 30, {
     emojis: [emoji],
     vibrate: false,
   });
+  const status = gameState.getDailyFeedStatus?.();
+  const mul = status?.isFullyServed ? (CONFIG.feedLoop?.fullCarePointsMultiplier ?? 1) : 1;
+  const points = basePoints ? Math.max(1, Math.round(basePoints * mul)) : 0;
   if (points) {
     gameState.changeStat('mood', CONFIG.ui.tapMoodBonus ?? 1);
+    if (status?.isFullyServed) {
+      const bonus = CONFIG.feedLoop?.fullCareTapStatBonus ?? 0;
+      if (bonus > 0) {
+        gameState.changeStat('hunger', bonus);
+        gameState.changeStat('thirst', bonus);
+      }
+    }
     gameState.addTapScore(points);
     updateScoreHub(true);
     pulseStat('mood');
@@ -1373,6 +1420,11 @@ function bindEvents() {
 
     if (isOnCooldown()) {
       showHomeToast(formatFeedToast(getRemainingMs()));
+      return;
+    }
+
+    if (CONFIG.foodPhoto?.enabled && isPhotoFeedLimitedNow()) {
+      showHomeToast(getPhotoFeedLimitToast());
       return;
     }
 
@@ -1943,6 +1995,7 @@ export async function launchGame() {
     disposeParticles = initHomeParticles(ui.homeParticles);
 
     gameState.load();
+    const offlineDecayReport = gameState.consumeOfflineDecayReport?.();
     setPhraseNameResolver(() => gameState.getKolobokName());
 
     renderUI(false);
@@ -1986,6 +2039,11 @@ export async function launchGame() {
       resumeHomeVideo();
     } else {
       activateHomeScreen();
+    }
+
+    const offlineToast = buildOfflineDecayToast(offlineDecayReport);
+    if (offlineToast) {
+      window.setTimeout(() => showHomeToast(offlineToast), 900);
     }
 
     gameState.save();
