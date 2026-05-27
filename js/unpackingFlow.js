@@ -78,7 +78,11 @@ export function createUnpackingFlow({ elements, callbacks }) {
     if (statsApplied) return;
     statsApplied = true;
 
+    const boosts = {};
     cart.forEach((item) => {
+      Object.entries(item.effects || {}).forEach(([key, val]) => {
+        if (val) boosts[key] = (boosts[key] ?? 0) + val;
+      });
       gameState.applyItem(item.effects || {});
     });
 
@@ -89,11 +93,20 @@ export function createUnpackingFlow({ elements, callbacks }) {
       mood: 12,
     };
     Object.entries(fb).forEach(([key, value]) => {
+      if (value) boosts[key] = (boosts[key] ?? 0) + value;
+    });
+
+    const before = {};
+    Object.entries(boosts).forEach(([key, val]) => {
+      if (val) before[key] = gameState.getStatDisplayPercent(key);
+    });
+
+    Object.entries(boosts).forEach(([key, value]) => {
       if (value) gameState.changeStat(key, value);
     });
 
-    callbacks.onStatsApplied?.();
-    showStatFloats(fb);
+    callbacks.onStatsApplied?.({ before, boosts });
+    showStatFloats(boosts);
   }
 
   function showStatFloats(boosts) {

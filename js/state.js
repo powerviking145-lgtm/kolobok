@@ -129,6 +129,20 @@ function normalizeFeedLog(raw) {
   };
 }
 
+function migrateStatsTo80Base(target, savedVersion) {
+  if (savedVersion >= 8) return;
+  const oldAbs = percentToAbsolute(40);
+  const newAbs = percentToAbsolute(statStartPercent());
+  STAT_KEYS.forEach((key) => {
+    const entry = target.stats?.[key];
+    if (!entry) return;
+    const cur = entry.current ?? oldAbs;
+    if (cur === oldAbs || cur === 40) {
+      entry.current = clampStat(key, newAbs, target);
+    }
+  });
+}
+
 function migrateStatsToPercentScale(target, savedVersion) {
   if (savedVersion >= 7) return;
 
@@ -228,6 +242,7 @@ export function normalizeState(raw = {}) {
 
   migrateFlatStats(raw, merged);
   migrateStatsToPercentScale(merged, savedVersion);
+  migrateStatsTo80Base(merged, savedVersion);
 
   if (raw.houses && typeof raw.houses === 'object') {
     const owned = Array.isArray(raw.houses.owned) ? raw.houses.owned : defaultHouses().owned;
@@ -306,6 +321,16 @@ const STAT_DECAY_KEYS = STAT_KEYS;
 
 function getHomeDecayPerTick() {
   const d = CONFIG.statDecay;
+  if (d.useFixedTickDecay) {
+    const dropPct = d.fixedDropDisplayPercent ?? 1;
+    const scale = statScaleMax();
+    const perTick = (dropPct / 100) * scale;
+    const rates = {};
+    STAT_DECAY_KEYS.forEach((key) => {
+      rates[key] = perTick;
+    });
+    return rates;
+  }
   const ms90 = 90 * 60 * 1000;
   const homeTickMs = d.tickMs * (d.homeSlowdown ?? 1);
   const refWeight = d.hunger ?? 1;
@@ -321,6 +346,9 @@ function getHomeDecayPerTick() {
 
 function getHomeDecayTickMs() {
   const d = CONFIG.statDecay ?? {};
+  if (d.useFixedTickDecay) {
+    return Math.max(500, Math.round(d.fixedTickMs ?? 2500));
+  }
   return Math.max(1000, Math.round((d.tickMs ?? 10000) * (d.homeSlowdown ?? 1)));
 }
 

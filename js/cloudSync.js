@@ -5,6 +5,7 @@ import { getFirestoreDb, isFirebaseEnabled } from './firebaseApp.js';
 import {
   getCooldownDurationMs,
   getRemainingMs,
+  isCooldownEnabled,
   setLastFeedTimestamp,
   clearLastFeedTimestamp,
 } from './feedCooldown.js';
@@ -28,6 +29,10 @@ function feedCooldownUntilFromLocal(now = Date.now()) {
 }
 
 function applyFeedCooldownFromCloud(untilMs) {
+  if (!isCooldownEnabled()) {
+    clearLastFeedTimestamp();
+    return;
+  }
   const until = Number(untilMs) || 0;
   const now = Date.now();
   if (until > now) {

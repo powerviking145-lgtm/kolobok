@@ -200,7 +200,11 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   }
 
   function close() {
-    if (!active) return;
+    if (!active) {
+      document.documentElement.classList.remove('is-food-photo-active');
+      document.getElementById('footer-buttons')?.classList.remove('is-hidden');
+      return;
+    }
     setOpen(false);
     callbacks.onClose?.();
   }
@@ -225,17 +229,24 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
 
   function applyFeed(food) {
     const effects = getEffects(food);
-    Object.entries(effects).forEach(([key, val]) => {
+    const moodBonus = cfg().moodBonus ?? 2;
+    const boosts = { ...effects };
+    if (moodBonus) boosts.mood = (boosts.mood ?? 0) + moodBonus;
+
+    const before = {};
+    Object.entries(boosts).forEach(([key, val]) => {
+      if (val) before[key] = gameState.getStatDisplayPercent(key);
+    });
+
+    Object.entries(boosts).forEach(([key, val]) => {
       if (val) gameState.changeStat(key, val);
     });
-    const moodBonus = cfg().moodBonus ?? 2;
-    if (moodBonus) gameState.changeStat('mood', moodBonus);
     const pts = cfg().tapScorePoints ?? 2;
     if (pts) gameState.addTapScore(pts);
     gameState.recordPhotoFeed?.(food);
     gameState.recordFoodInteraction?.();
     gameState.save();
-    callbacks.onStatsApplied?.();
+    callbacks.onStatsApplied?.({ before, boosts });
   }
 
   function showResult(food, { customComment } = {}) {

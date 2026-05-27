@@ -33,6 +33,8 @@ import { initHomeLayout } from './homeLayout.js';
 import { getStatDisplayPercent } from './statZones.js';
 import {
   isOnCooldown,
+  isCooldownEnabled,
+  initFeedCooldown,
   getRemainingMs,
   setLastFeedTimestamp,
   clearLastFeedTimestamp,
@@ -179,6 +181,83 @@ function pulseStat(statKey) {
   fill.classList.remove('top-stat__fill--pulse');
   void fill.offsetWidth;
   fill.classList.add('top-stat__fill--pulse');
+}
+
+function showStatBoostFloat(row, text, colorHex) {
+  const float = document.createElement('span');
+  float.className = 'stat-chip__boost-float';
+  float.textContent = text;
+  float.style.setProperty('--boost-color', colorHex || '#F5A623');
+  row.style.position = 'relative';
+  row.appendChild(float);
+  window.setTimeout(() => float.remove(), 1100);
+}
+
+/** Плавный подъём полосок после кормления (фото / распаковка). */
+function animateStatFeedBoost({ before, boosts }) {
+  if (!before || !boosts) return;
+  const stats = gameState.get();
+  const themes = CONFIG.topPanel?.statThemes ?? {};
+  const duration = 900;
+  let animated = false;
+
+  Object.entries(boosts).forEach(([key, delta]) => {
+    if (!delta) return;
+    const from = before[key];
+    if (from === undefined) return;
+
+    const to =
+      stats.stats?.[key]?.displayPercent ?? gameState.getStatDisplayPercent(key);
+    if (to <= from) return;
+
+    animated = true;
+    const theme = themes[key] ?? { rgb: '245, 166, 35', hex: '#F5A623', dark: '#C48412' };
+    const row = ui.statsBars?.querySelector(`[data-stat="${key}"]`);
+    const fill = ui.statsBars?.querySelector(`[data-fill="${key}"]`);
+    const pctEl = ui.statsBars?.querySelector(`[data-pct="${key}"]`);
+
+    row?.classList.add('stat-chip--feed-boost');
+    fill?.classList.add('top-stat__fill--feed-rise');
+    pctEl?.classList.add('stat-chip__pct--rising');
+
+    if (fill) {
+      fill.style.transition = 'none';
+      fill.style.width = `${from}%`;
+      fill.style.background = `linear-gradient(90deg, ${theme.dark} 0%, ${theme.hex} 100%)`;
+      void fill.offsetWidth;
+      fill.style.transition = `width ${duration}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+      fill.style.width = `${to}%`;
+    }
+
+    if (pctEl) pctEl.textContent = `${from}%`;
+
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - (1 - t) ** 3;
+      const cur = Math.round(from + (to - from) * eased);
+      if (pctEl) pctEl.textContent = `${cur}%`;
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        pctEl?.classList.remove('stat-chip__pct--rising');
+        row?.classList.remove('stat-chip--feed-boost');
+        fill?.classList.remove('top-stat__fill--feed-rise');
+        updateStatsBars(gameState.get());
+      }
+    };
+    requestAnimationFrame(tick);
+
+    if (row && delta > 0) {
+      showStatBoostFloat(row, `+${Math.round(delta)}`, theme.hex);
+    }
+  });
+
+  if (animated) {
+    currentMood = getMood(stats);
+    updateKolobokMood(currentMood);
+    updateScoreHub(true);
+  }
 }
 
 async function handleResetProgress(closeMenuSheet) {
@@ -420,6 +499,12 @@ function stopFeedCooldownTicker() {
   }
 }
 
+function restoreFeedDockInteractivity() {
+  document.documentElement.classList.remove('is-food-photo-active');
+  document.getElementById('footer-buttons')?.classList.remove('is-hidden');
+  ui.footer?.classList.remove('is-hidden');
+}
+
 function clearStuckFeedVisualState() {
   if (isFeedFlowOnScreen()) return;
   ui.app?.classList.remove('is-purchase-active', 'is-unpack-reaction', 'is-feed-active');
@@ -447,18 +532,20 @@ function ensureHomeScreenAwake({ refreshSpeech = false } = {}) {
 }
 
 function ensureFeedCooldownTicker() {
-  if (feedCooldownTimerId || !isOnCooldown()) return;
+  if (!isCooldownEnabled() || feedCooldownTimerId || !isOnCooldown()) return;
 
   const tickMs = CONFIG.feedCooldown?.tickMs ?? 1000;
 
   const tick = () => {
     if (runner?.isActive()) return;
-    clearStuckFeedVisualState();
-    ensureHomeScreenAwake();
-    if (isFeedFlowOnScreen()) return;
     updateReceiptButton(gameState.get());
+    if (!isFeedFlowOnScreen()) {
+      clearStuckFeedVisualState();
+      ensureHomeScreenAwake();
+    }
     if (!isOnCooldown()) {
       stopFeedCooldownTicker();
+      restoreFeedDockInteractivity();
     }
   };
 
@@ -468,6 +555,23 @@ function ensureFeedCooldownTicker() {
 
 function updateReceiptButton(stats) {
   if (!ui.btnReceipt) return;
+
+  if (!isCooldownEnabled()) {
+    wasFeedCooldownActive = false;
+    stopFeedCooldownTicker();
+    ui.btnReceipt.classList.remove('btn--feed-cooldown', 'btn--disabled');
+    restoreFeedDockInteractivity();
+    setReceiptButtonDefault();
+    ui.btnReceipt.disabled = false;
+    ui.btnReceipt.setAttribute('aria-disabled', 'false');
+    if (!CONFIG.foodPhoto?.enabled) {
+      const allowed = canRequestReceipt(stats);
+      ui.btnReceipt.disabled = !allowed;
+      ui.btnReceipt.classList.toggle('btn--disabled', !allowed);
+      ui.btnReceipt.setAttribute('aria-disabled', String(!allowed));
+    }
+    return;
+  }
 
   const onCooldownNow = getRemainingMs() > 0;
   const cooldownJustEnded = wasFeedCooldownActive && !onCooldownNow;
@@ -508,6 +612,7 @@ function updateReceiptButton(stats) {
   }
 
   if (cooldownJustEnded) {
+    restoreFeedDockInteractivity();
     ensureHomeScreenAwake({ refreshSpeech: true });
   }
 }
@@ -1620,24 +1725,28 @@ function initFoodPhotoFeed() {
           hideMs: CONFIG.foodPhoto?.phraseHideMs ?? 12000,
         });
       },
-      onStatsApplied: () => {
+      onStatsApplied: (payload) => {
+        if (payload?.before && payload?.boosts) {
+          animateStatFeedBoost(payload);
+          return;
+        }
         const stats = gameState.get();
         currentMood = getMood(stats);
         updateStatsBars(stats);
         updateScoreHub(true);
         updateKolobokMood(currentMood);
-        CONFIG.statBars.forEach((bar) => pulseStat(bar.key));
       },
       onComplete: () => {
-        setLastFeedTimestamp();
+        if (isCooldownEnabled()) setLastFeedTimestamp();
         const stats = gameState.get();
         currentMood = getMood(stats);
         updateStatsBars(stats);
         updateKolobokMood(currentMood);
         gameState.save();
+        restoreFeedDockInteractivity();
         stopFeedCooldownTicker();
         updateReceiptButton(stats);
-        ensureFeedCooldownTicker();
+        if (isCooldownEnabled()) ensureFeedCooldownTicker();
         resumeHomeAfterFeed([]);
         resumeHomeVideo();
         refreshPhrase(true);
@@ -1649,7 +1758,9 @@ function initFoodPhotoFeed() {
         });
       },
       onClose: () => {
+        restoreFeedDockInteractivity();
         resumeTimers();
+        updateReceiptButton(gameState.get());
         if (!isOnCooldown()) kickHomeSpawns();
       },
     },
@@ -1694,17 +1805,22 @@ function initPurchase() {
       onVideoResume: () => {
         resumeHomeVideo();
       },
-      onStatsApplied: () => {
+      onStatsApplied: (payload) => {
+        if (payload?.before && payload?.boosts) {
+          animateStatFeedBoost(payload);
+          gameState.save();
+          updateShopButton();
+          return;
+        }
         const stats = gameState.get();
         currentMood = getMood(stats);
         updateStatsBars(stats);
         updateKolobokMood(currentMood);
-        CONFIG.statBars.forEach((bar) => pulseStat(bar.key));
         gameState.save();
         updateShopButton();
       },
       onEnd: async (cartItems) => {
-        setLastFeedTimestamp();
+        if (isCooldownEnabled()) setLastFeedTimestamp();
         const stats = gameState.get();
         currentMood = getMood(stats);
         updateStatsBars(stats);
@@ -1717,9 +1833,10 @@ function initPurchase() {
         } finally {
           syncPurchaseStuckState();
           updateShopButton();
+          restoreFeedDockInteractivity();
           stopFeedCooldownTicker();
           updateReceiptButton(gameState.get());
-          ensureFeedCooldownTicker();
+          if (isCooldownEnabled()) ensureFeedCooldownTicker();
           ensureHomeScreenAwake({ refreshSpeech: true });
           resumeHomeVideo();
           window.setTimeout(() => resumeHomeVideo(), 120);
@@ -1995,13 +2112,14 @@ export async function launchGame() {
     disposeParticles = initHomeParticles(ui.homeParticles);
 
     gameState.load();
+    initFeedCooldown();
     const offlineDecayReport = gameState.consumeOfflineDecayReport?.();
     setPhraseNameResolver(() => gameState.getKolobokName());
 
     renderUI(false);
     bindEvents();
 
-    ensureFeedCooldownTicker();
+    if (isCooldownEnabled()) ensureFeedCooldownTicker();
     startTimers();
 
     const repositionSpeech = () => {

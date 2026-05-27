@@ -7,7 +7,7 @@ export const BUILD =
 export const CONFIG = {
   build: BUILD,
   storageKey: 'kolobok_save',
-  saveVersion: 7,
+  saveVersion: 8,
 
   firebase: {
     enabled: true,
@@ -71,11 +71,11 @@ export const CONFIG = {
 
   stats: {
     /** Старт и базовый потолок без прокачки, в % от шкалы max (120) */
-    basePercent: 40,
-    startPercent: 40,
+    basePercent: 80,
+    startPercent: 80,
     /** @deprecated для миграции v6 */
-    base: 40,
-    start: 40,
+    base: 80,
+    start: 80,
     min: 0,
     /** Абсолютная шкала (100% = 120 пунктов) */
     max: 120,
@@ -145,6 +145,10 @@ export const CONFIG = {
   },
 
   statDecay: {
+    /** Тест: −1% HUD всех статов каждые fixedTickMs (потом выключить) */
+    useFixedTickDecay: true,
+    fixedTickMs: 2500,
+    fixedDropDisplayPercent: 1,
     tickMs: 10000,
     homeSlowdown: 1.5,
     /** Отображаемый % полоски (0–100) за 90 мин при весе 1; при max 120 ≈ 1.2 пункта */
@@ -621,11 +625,13 @@ export const CONFIG = {
   },
 
   feedCooldown: {
+    /** Временно выкл. — вернём лимит «сыт» позже */
+    enabled: false,
     storageKey: 'lastFeedTimestamp',
     durationMs: 20 * 60 * 60 * 1000,
     /** При purchase.testMode — 1 мин для проверки */
     devDurationMs: 60 * 1000,
-    useDevDuration: true,
+    useDevDuration: false,
     fedLabel: 'Сыт',
     buttonIcon: '🍔',
     toastText: 'Колобок ещё сыт, бро. Покормить можно через {time}.',

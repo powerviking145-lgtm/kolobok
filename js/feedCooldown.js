@@ -4,6 +4,11 @@ function cfg() {
   return CONFIG.feedCooldown ?? {};
 }
 
+/** Выкл. на время тестов — таймер «сыт» не мешает кормлению. */
+export function isCooldownEnabled() {
+  return cfg().enabled !== false;
+}
+
 export function getCooldownDurationMs() {
   const c = cfg();
   if (c.useDevDuration && CONFIG.purchase?.testMode) {
@@ -19,7 +24,12 @@ export function getLastFeedTimestamp() {
 }
 
 export function setLastFeedTimestamp(ts = Date.now()) {
+  if (!isCooldownEnabled()) return;
   localStorage.setItem(cfg().storageKey ?? 'lastFeedTimestamp', String(ts));
+}
+
+export function initFeedCooldown() {
+  if (!isCooldownEnabled()) clearLastFeedTimestamp();
 }
 
 export function clearLastFeedTimestamp() {
@@ -27,12 +37,14 @@ export function clearLastFeedTimestamp() {
 }
 
 export function getRemainingMs(now = Date.now()) {
+  if (!isCooldownEnabled()) return 0;
   const last = getLastFeedTimestamp();
   if (!last) return 0;
   return Math.max(0, getCooldownDurationMs() - (now - last));
 }
 
 export function isOnCooldown(now = Date.now()) {
+  if (!isCooldownEnabled()) return false;
   return getRemainingMs(now) > 0;
 }
 
