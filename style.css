@@ -3060,6 +3060,14 @@ html.is-onboarding-active .tutorial-overlay {
   width: 100%;
   justify-content: flex-start;
   text-align: left;
+  color: var(--game-text-dark, #3d2914);
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(196, 137, 58, 0.5);
+}
+
+.receipt-scan-modal__card .btn--primary#food-photo-done {
+  color: var(--izba-text-dark, #2b1a08);
+  font-weight: 800;
 }
 
 .food-photo-result__hero {
@@ -5735,6 +5743,27 @@ html.is-tutorial-active.is-food-photo-active .tutorial-overlay {
   z-index: 900;
 }
 
+html.is-tutorial-active .food-photo-choice.tutorial-cutout,
+html.is-tutorial-active .food-photo-choice.tutorial-highlight {
+  color: #2b1a08 !important;
+  background: #fff8ea !important;
+  border: 0.12rem solid rgba(255, 184, 77, 0.95) !important;
+  box-shadow:
+    0 0 0 0.1rem rgba(255, 220, 140, 0.9),
+    0 0.35rem 0.85rem rgba(255, 184, 77, 0.45) !important;
+}
+
+html.is-tutorial-active #food-photo-done.tutorial-cutout,
+html.is-tutorial-active #food-photo-done.tutorial-highlight {
+  color: #2b1a08 !important;
+  background: linear-gradient(180deg, #ffd166 0%, #ffb84d 55%, #ff9a2e 100%) !important;
+  border: 0.12rem solid rgba(255, 240, 200, 0.95) !important;
+  box-shadow:
+    0 0 0 0.14rem rgba(255, 220, 120, 0.85),
+    0 0.45rem 1rem rgba(255, 160, 60, 0.55) !important;
+  font-weight: 800 !important;
+}
+
 .tutorial-overlay[hidden] {
   display: none !important;
   visibility: hidden;
@@ -5779,8 +5808,10 @@ html.is-tutorial-active.is-food-photo-active .tutorial-overlay {
   z-index: 20;
   width: min(calc(100% - 1.5rem), 20rem);
   max-width: calc(100% - 1.5rem);
-  max-height: min(52dvh, 22rem);
-  overflow: visible;
+  max-height: min(40dvh, 17rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 1rem 1.125rem 0.85rem;
   box-sizing: border-box;
   background: linear-gradient(180deg, #fff5e1 0%, #ffedc9 100%);

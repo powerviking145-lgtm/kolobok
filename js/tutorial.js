@@ -186,6 +186,10 @@ export function createTutorialController({
     hideStepSkip();
     hideDemoSpeech();
     document.querySelectorAll('.tutorial-food').forEach((el) => el.remove());
+    document.querySelectorAll('.food-photo-choice').forEach((el) => {
+      el.classList.remove('tutorial-highlight', 'tutorial-cutout');
+    });
+    document.getElementById('food-photo-done')?.classList.remove('tutorial-highlight', 'tutorial-cutout');
     overlay?.setAttribute('hidden', '');
     overlay?.setAttribute('aria-hidden', 'true');
     document.documentElement.classList.remove('is-tutorial-active');
@@ -286,6 +290,7 @@ export function createTutorialController({
       step.dim === 'light'
         ? CONFIG.tutorial.dimLight || 'rgba(0,0,0,0.45)'
         : CONFIG.tutorial.dimStrong || 'rgba(0,0,0,0.75)';
+    clearSpotlight();
     const btn = document.getElementById('food-photo-done');
     if (!btn || btn.hidden || !btn.offsetParent) {
       if (attempt < 30) {
@@ -297,6 +302,48 @@ export function createTutorialController({
     const rect = btn.getBoundingClientRect();
     applySpotlightRect(rect, dim, btn);
     spotlightTarget = btn;
+    positionCard(step);
+  }
+
+  function layoutUnionSpotlight(step) {
+    const dim =
+      step.dim === 'light'
+        ? CONFIG.tutorial.dimLight || 'rgba(0,0,0,0.45)'
+        : CONFIG.tutorial.dimStrong || 'rgba(0,0,0,0.75)';
+    const selectors = Array.isArray(step.spotlightSelectors) ? step.spotlightSelectors : [];
+    const elements = selectors
+      .map((sel) => document.querySelector(sel))
+      .filter(Boolean);
+    const rects = elements
+      .map((el) => el.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.height > 0);
+
+    clearSpotlight();
+    if (!rects.length) {
+      applySpotlight(null, dim);
+      positionCard(step);
+      return;
+    }
+
+    const union = rects.reduce(
+      (acc, r) => ({
+        left: Math.min(acc.left, r.left),
+        top: Math.min(acc.top, r.top),
+        right: Math.max(acc.right, r.right),
+        bottom: Math.max(acc.bottom, r.bottom),
+      }),
+      { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
+    );
+    const rect = {
+      left: union.left,
+      top: union.top,
+      width: union.right - union.left,
+      height: union.bottom - union.top,
+    };
+
+    elements.forEach((el) => el.classList.add('tutorial-highlight', 'tutorial-cutout'));
+    applySpotlightRect(rect, dim);
+    spotlightTarget = elements[0] ?? null;
     positionCard(step);
   }
 
@@ -314,8 +361,12 @@ export function createTutorialController({
       }
       return;
     }
+    clearSpotlight();
     const rect = choices.getBoundingClientRect();
     applySpotlightRect(rect, dim, choices);
+    choices.querySelectorAll('.food-photo-choice').forEach((btn) => {
+      btn.classList.add('tutorial-highlight', 'tutorial-cutout');
+    });
     spotlightTarget = choices;
     positionCard(step);
   }
@@ -337,6 +388,11 @@ export function createTutorialController({
       applySpotlight(null, dim);
       showDemoSpeech(step.demoSpeech);
       positionCard(step);
+      return;
+    }
+
+    if (Array.isArray(step.spotlightSelectors) && step.spotlightSelectors.length) {
+      layoutUnionSpotlight(step);
       return;
     }
 
@@ -362,7 +418,9 @@ export function createTutorialController({
       return;
     }
 
-    applySpotlight(target, dim, { statsFocus: step.id === 'stats' });
+    applySpotlight(target, dim, {
+      statsFocus: step.id === 'stats' || step.statsFocus === true,
+    });
     positionCard(step);
   }
 
@@ -372,7 +430,12 @@ export function createTutorialController({
     const pad = Math.max(12, Math.min(20, b.width * 0.04));
     let placement = step.cardPlacement || 'center';
 
-    if (step.id === 'feed_wait' || step.id === 'feed_manual_pick') {
+    if (
+      step.id === 'welcome' ||
+      step.id === 'feed_intro' ||
+      step.id === 'feed_wait' ||
+      step.id === 'feed_manual_pick'
+    ) {
       placement = 'top';
       const { w: cardW, h: cardH } = measureCardSize();
       card.classList.remove(

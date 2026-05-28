@@ -158,6 +158,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   let previewUrl = null;
   let pendingFeedBoost = null;
   let pendingFood = null;
+  let pendingTutorialFeed = false;
   let tutorialDemoMode = false;
 
   function isOpen() {
@@ -215,17 +216,26 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     if (choicesEl) choicesEl.replaceChildren();
   }
 
-  function close() {
-    if (!active) {
-      document.documentElement.classList.remove('is-food-photo-active');
-      document.getElementById('footer-buttons')?.classList.remove('is-hidden');
-      return;
-    }
+  function forceClose() {
     tutorialDemoMode = false;
+    pendingTutorialFeed = false;
     pendingFeedBoost = null;
     pendingFood = null;
-    setOpen(false);
-    callbacks.onClose?.();
+    active = false;
+    revokePreview();
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      modal.classList.remove('is-open');
+    }
+    document.documentElement.classList.remove('is-food-photo-active');
+    uiFooterShow();
+  }
+
+  function close() {
+    const wasActive = active;
+    forceClose();
+    if (wasActive) callbacks.onClose?.();
   }
 
   function showError(message) {
@@ -246,7 +256,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     });
   }
 
-  function applyFeed(food) {
+  function applyFeed(food, { tutorialFeed = false } = {}) {
     const fillPct = cfg().fillPrimaryStatPercent ?? 80;
     const drink = isDrinkFood(food);
     const primaryKey = drink ? 'thirst' : 'hunger';
@@ -254,11 +264,21 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     const before = {};
     const boosts = {};
 
-    before[primaryKey] = gameState.getStatDisplayPercent(primaryKey);
-    gameState.raiseStatToDisplayPercent(primaryKey, fillPct);
-    const primaryAfter = gameState.getStatDisplayPercent(primaryKey);
-    const primaryGain = primaryAfter - before[primaryKey];
-    if (primaryGain > 0) boosts[primaryKey] = primaryGain;
+    if (tutorialFeed) {
+      ['hunger', 'thirst'].forEach((key) => {
+        before[key] = gameState.getStatDisplayPercent(key);
+        gameState.raiseStatToDisplayPercent(key, 100);
+        const after = gameState.getStatDisplayPercent(key);
+        const gain = after - before[key];
+        if (gain > 0) boosts[key] = gain;
+      });
+    } else {
+      before[primaryKey] = gameState.getStatDisplayPercent(primaryKey);
+      gameState.raiseStatToDisplayPercent(primaryKey, fillPct);
+      const primaryAfter = gameState.getStatDisplayPercent(primaryKey);
+      const primaryGain = primaryAfter - before[primaryKey];
+      if (primaryGain > 0) boosts[primaryKey] = primaryGain;
+    }
 
     before.health = gameState.getStatDisplayPercent('health');
     before.mood = gameState.getStatDisplayPercent('mood');
@@ -342,6 +362,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   }
 
   function showResult(food, { customComment, tutorialBonus = false } = {}) {
+    pendingTutorialFeed = !!tutorialBonus;
     const phrase =
       customComment?.trim() || getFoodPhotoFeedPhrase(food);
     if (resultEmoji) resultEmoji.textContent = food.emoji;
@@ -458,6 +479,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     customComment = 'Я уже нашел тебе воду на первый раз. Но дальше фоткаешь сам, бро.',
   } = {}) {
     tutorialDemoMode = false;
+    pendingTutorialFeed = true;
     if (!active) setOpen(true);
     const fallback = getFoodList().find((f) => isDrinkFood(f)) ?? getFoodList()[0] ?? null;
     const food = getFoodById(foodId) ?? fallback;
@@ -489,7 +511,8 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       if (tutorialDemoMode) return;
       vibrate(CONFIG.ui?.hapticFeedConfirm ?? [16, 18, 22]);
       if (pendingFood) {
-        applyFeed(pendingFood);
+        applyFeed(pendingFood, { tutorialFeed: pendingTutorialFeed });
+        pendingTutorialFeed = false;
       }
       const boost = pendingFeedBoost;
       pendingFeedBoost = null;
@@ -523,6 +546,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     openTutorialPreset,
     showTutorialConfirmDemo,
     close,
+    forceClose,
     isActive: isOpen,
   };
 }

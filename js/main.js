@@ -703,6 +703,23 @@ function restoreFeedDockInteractivity() {
   ui.footer?.classList.remove('is-hidden');
 }
 
+/** Сброс залипших оверлеев туториала / фото-корма после онбординга. */
+function purgeTutorialChrome() {
+  document.documentElement.classList.remove('is-tutorial-active', 'is-food-photo-active');
+  document.querySelectorAll('.tutorial-highlight, .tutorial-cutout').forEach((el) => {
+    el.classList.remove('tutorial-highlight', 'tutorial-cutout');
+    el.style.removeProperty('--tutorial-dim');
+  });
+  const overlay = document.getElementById('tutorial-overlay');
+  if (overlay) {
+    overlay.setAttribute('hidden', '');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+  foodPhotoFeed?.forceClose?.();
+  document.getElementById('footer-buttons')?.classList.remove('is-hidden');
+  ui.footer?.classList.remove('is-hidden');
+}
+
 function clearStuckFeedVisualState() {
   if (isFeedFlowOnScreen()) return;
   ui.app?.classList.remove('is-purchase-active', 'is-unpack-reaction', 'is-feed-active');
@@ -1324,11 +1341,16 @@ function resumeHomeAfterFeed(cartItems) {
   kolobokLecture?.dismiss?.();
   replySystem?.hideNutrition?.();
   replySystem?.hideAll();
-  document.documentElement.classList.remove(
-    'is-lecture-active',
-    'is-shop-hint-active',
-    'is-tutorial-active'
-  );
+  const tutorialStillActive = tutorial?.isActive?.();
+  if (!tutorialStillActive) {
+    document.documentElement.classList.remove(
+      'is-lecture-active',
+      'is-shop-hint-active',
+      'is-tutorial-active'
+    );
+  } else {
+    document.documentElement.classList.remove('is-lecture-active', 'is-shop-hint-active');
+  }
   ui.app?.classList.remove(
     'is-purchase-active',
     'is-unpack-reaction',
@@ -1343,10 +1365,11 @@ function resumeHomeAfterFeed(cartItems) {
   ui.footer?.classList.remove('is-hidden');
   syncPurchaseStuckState();
   updateShopButton();
-  resumeGameTimersOnly();
-
-  homeSpawns?.repopulate?.(cartItems || []);
-  ensureHomeScreenAwake({ refreshSpeech: true });
+  if (!tutorialStillActive) {
+    resumeGameTimersOnly();
+    homeSpawns?.repopulate?.(cartItems || []);
+    ensureHomeScreenAwake({ refreshSpeech: true });
+  }
   requestAnimationFrame(() => {
     homeSpawns?.topUp?.(true);
     ensureHomeScreenAwake();
@@ -2282,8 +2305,7 @@ export async function launchGame() {
         resumeHomeVideo();
       },
       onComplete: () => {
-        document.documentElement.classList.remove('is-tutorial-active');
-        foodPhotoFeed?.close?.();
+        purgeTutorialChrome();
         restoreFeedDockInteractivity();
         resumeTimers();
         activateHomeScreen();

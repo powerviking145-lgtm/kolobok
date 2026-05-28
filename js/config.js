@@ -421,14 +421,15 @@ export const CONFIG = {
     steps: [
       {
         id: 'welcome',
-        targetSelector: '#kolobok',
-        cardPlacement: 'center',
+        targetSelector: '#stats-bars',
+        statsFocus: true,
+        cardPlacement: 'top',
         text: 'Хозяин, меня только испекли — а я уже голоден и хочу пить. Накорми меня!',
         buttonText: 'Помочь колобку',
       },
       {
         id: 'feed_intro',
-        targetSelector: '#btn-receipt',
+        spotlightSelectors: ['#stats-bars', '#btn-receipt'],
         cardPlacement: 'top',
         text: 'Жми сюда, чтобы покормить и напоить своего колобка. Он ест тем же, что и ты: сфоткай еду — и колобок насытится. В благодарность подскажу, как тебе лучше питаться.',
         buttonText: 'Понял',
@@ -819,7 +820,7 @@ export const CONFIG = {
     titleError: 'Не разобрал фото',
     pickHint: 'Колобок почти уверен — поправь, если промахнулся.',
     phraseHideMs: 12000,
-    buttonText: 'Сфоткать еду',
+    buttonText: 'Кормить',
     buttonIcon: '📸',
     nutritionCoach: {
       factsById: {
@@ -925,7 +926,7 @@ export const CONFIG = {
 
   ui: {
     receiptStoreHeading: 'Чек · Пятёрочка / Перекрёсток / Чижик',
-    unpackButton: 'Сфоткать еду',
+    unpackButton: 'Кормить',
     receiptButtonIcon: '📸',
     shopButton: 'Магазин',
     openBagButton: 'Открыть пакет 📦',

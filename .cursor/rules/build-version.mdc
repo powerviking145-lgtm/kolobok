@@ -1,0 +1,11 @@
+---
+description: Bump Kolobok BUILD version when user requests a release or version increase
+alwaysApply: true
+---
+
+# Kolobok BUILD version
+
+- Canonical source: `js/build.js` → `export const BUILD`.
+- When the user asks to **raise/increase the version** («повысить версию», «+1 версия») or to **deploy/push with a new version** («залей» with version bump implied): increment `BUILD` by **1** in `js/build.js`, sync `index.html` boot `var BUILD`, and `js/entry.js` fallback if present.
+- Then run `node scripts/build.mjs` before commit (updates `js/bundle/*` and `manifest.json`).
+- Commit message format: `BUILD NNN: <short summary>`.
