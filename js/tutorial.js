@@ -32,6 +32,7 @@ export function createTutorialController({
   onFoodTapped,
   onSpawnTutorialFood,
   onRequestPhotoFeed,
+  onReleaseFoodModal,
   onUnlock,
 }) {
   const steps = CONFIG.tutorial.steps;
@@ -642,25 +643,40 @@ export function createTutorialController({
     onUnlock?.();
   }
 
-  function finalizeTutorial() {
+  function releaseFoodModalIfNeeded(step) {
+    if (!step) return;
+    const foodStep =
+      step.action === 'show_confirm_demo' ||
+      step.action === 'wait_for_photo_feed' ||
+      step.id === 'feed_manual_pick' ||
+      step.id === 'feed_wait';
+    if (foodStep) onReleaseFoodModal?.();
+  }
+
+  /** Сразу снимаем блокировку UI — без отложенного finalize. */
+  function completeTutorialNow() {
     if (finishing) return;
     finishing = true;
     active = false;
-    armUnlock();
+    hideStepSkip();
+    hideDemoSpeech();
+    onReleaseFoodModal?.();
     if (resizeHandler) {
       window.removeEventListener('resize', resizeHandler);
       resizeHandler = null;
     }
-    hideDemoSpeech();
     localStorage.setItem(STORAGE_KEY, 'true');
-    window.requestAnimationFrame(() => armUnlock());
-    window.setTimeout(() => armUnlock(), 50);
-    window.setTimeout(() => armUnlock(), 300);
+    armUnlock();
     onComplete?.();
   }
 
-  function finish() {
-    finalizeTutorial();
+  function releaseStale() {
+    active = false;
+    finishing = false;
+    hideStepSkip();
+    hideDemoSpeech();
+    onReleaseFoodModal?.();
+    armUnlock();
   }
 
   function playFinale() {
@@ -692,11 +708,12 @@ export function createTutorialController({
   }
 
   function showStep(index) {
+    if (!active) return;
+
     const step = steps[index];
     if (!step) {
-      armUnlock();
       playFinale();
-      window.setTimeout(finalizeTutorial, 900);
+      completeTutorialNow();
       return;
     }
 
@@ -765,18 +782,20 @@ export function createTutorialController({
   function onPhotoFeedCompleted() {
     const step = steps[currentStep];
     if (!active || step?.action !== 'wait_for_photo_feed') return;
+    onReleaseFoodModal?.();
     window.setTimeout(() => goNext(), 450);
   }
 
   function goNext() {
+    if (!active) return;
     hideStepSkip();
     hideDemoSpeech();
     if (currentStep >= steps.length - 1) {
-      armUnlock();
       playFinale();
-      window.setTimeout(finalizeTutorial, 900);
+      completeTutorialNow();
       return;
     }
+    releaseFoodModalIfNeeded(steps[currentStep]);
     showStep(currentStep + 1);
   }
 
@@ -816,18 +835,20 @@ export function createTutorialController({
   }
   if (skipBtn) {
     skipBtn.addEventListener('click', () => {
+      if (!active) return;
       hideDemoSpeech();
-      armUnlock();
+      onReleaseFoodModal?.();
       playFinale();
-      window.setTimeout(finalizeTutorial, 400);
+      completeTutorialNow();
     });
   }
 
   return {
     start,
     isActive: () => active,
+    releaseStale,
     onFoodCollected,
     onPhotoFeedCompleted,
-    skip: finish,
+    skip: completeTutorialNow,
   };
 }

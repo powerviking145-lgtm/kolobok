@@ -3129,7 +3129,12 @@ html.is-food-photo-active #footer-buttons {
   pointer-events: none;
 }
 
-.receipt-scan-modal.is-open {
+.receipt-scan-modal[hidden],
+.receipt-scan-modal:not(.is-open) {
+  pointer-events: none !important;
+}
+
+.receipt-scan-modal.is-open:not([hidden]) {
   pointer-events: auto;
 }
 

@@ -773,6 +773,33 @@ function purgeTutorialChrome() {
   shopUpgradeHint?.hide?.();
 }
 
+/** Блокировка главного UI — только по классу на html (не по залипшему active). */
+function isTutorialUiLocking() {
+  return document.documentElement.classList.contains('is-tutorial-active');
+}
+
+function isFoodPhotoModalBlocking() {
+  const modal = document.getElementById('food-photo-modal');
+  return Boolean(modal && !modal.hidden && modal.classList.contains('is-open'));
+}
+
+/** Сброс залипших оверлеев туториала / фото-корма / флага active. */
+function ensureHomeUiUnlocked({ refreshSpeech = false } = {}) {
+  if (tutorial?.isActive?.() && !isTutorialUiLocking()) {
+    tutorial.releaseStale?.();
+  }
+  if (!isTutorialUiLocking()) {
+    purgeTutorialChrome();
+    restoreFeedDockInteractivity();
+  }
+  if (isFoodPhotoModalBlocking()) {
+    foodPhotoFeed?.forceClose?.();
+  }
+  if (refreshSpeech && !isHomePhraseBlocked()) {
+    refreshPhrase(true);
+  }
+}
+
 function clearStuckFeedVisualState() {
   if (isFeedFlowOnScreen()) return;
   ui.app?.classList.remove('is-purchase-active', 'is-unpack-reaction', 'is-feed-active');
@@ -785,7 +812,7 @@ function clearStuckFeedVisualState() {
 }
 
 function ensureHomeScreenAwake({ refreshSpeech = false } = {}) {
-  if (runner?.isActive() || tutorial?.isActive() || isFeedFlowOnScreen()) return;
+  if (runner?.isActive() || isTutorialUiLocking() || isFeedFlowOnScreen()) return;
 
   clearStuckFeedVisualState();
 
@@ -845,7 +872,7 @@ function updateReceiptButton(stats) {
   const cooldownJustEnded = wasFeedCooldownActive && !onCooldownNow;
   wasFeedCooldownActive = onCooldownNow;
 
-  if (tutorial?.isActive()) {
+  if (isTutorialUiLocking()) {
     setReceiptButtonDefault();
     ui.btnReceipt.classList.remove('btn--feed-cooldown', 'btn--disabled');
     ui.btnReceipt.disabled = false;
@@ -889,7 +916,7 @@ function isHomePhraseBlocked() {
   return (
     isFeedFlowOnScreen() ||
     runner?.isActive() ||
-    tutorial?.isActive() ||
+    isTutorialUiLocking() ||
     badFoodTip?.isActive() ||
     shopUpgradeHint?.isActive()
   );
@@ -1409,7 +1436,7 @@ function resumeHomeAfterFeed(cartItems) {
   ui.footer?.classList.remove('is-hidden');
   syncPurchaseStuckState();
   updateShopButton();
-  if (!tutorial?.isActive?.()) {
+  if (!isTutorialUiLocking()) {
     resumeGameTimersOnly();
     homeSpawns?.repopulate?.(cartItems || []);
     ensureHomeScreenAwake({ refreshSpeech: true });
@@ -1425,7 +1452,7 @@ function isHomeBlocked() {
     isFeedFlowOnScreen() ||
     runner?.isActive() ||
     kolobokLecture?.isActive() ||
-    tutorial?.isActive() ||
+    isTutorialUiLocking() ||
     badFoodTip?.isActive() ||
     shopUpgradeHint?.isActive() ||
     roadmapScreen?.isOpen()
@@ -1434,18 +1461,18 @@ function isHomeBlocked() {
 
 /** Чек реально на экране (не залипший флаг flowBusy). */
 function isFoodPhotoFeedActive() {
-  return foodPhotoFeed?.isActive?.() ?? false;
+  return (foodPhotoFeed?.isActive?.() ?? false) || isFoodPhotoModalBlocking();
 }
 
 function isFeedFlowOnScreen() {
-  return isPurchaseLayerVisible() || isFoodPhotoFeedActive();
+  return isPurchaseLayerVisible() || isFoodPhotoFeedActive() || isFoodPhotoModalBlocking();
 }
 
 function isSpawnBlocked() {
   return (
     isFeedFlowOnScreen() ||
     runner?.isActive() ||
-    tutorial?.isActive() ||
+    isTutorialUiLocking() ||
     badFoodTip?.isActive() ||
     shopScreen?.isOpen() ||
     roadmapScreen?.isOpen()
@@ -1454,7 +1481,7 @@ function isSpawnBlocked() {
 
 function tryShowShopUpgradeHint() {
   if (isFeedFlowOnScreen()) return;
-  if (runner?.isActive() || tutorial?.isActive() || badFoodTip?.isActive()) return;
+  if (runner?.isActive() || isTutorialUiLocking() || badFoodTip?.isActive()) return;
   if (shopScreen?.isOpen() || roadmapScreen?.isOpen()) return;
   shopUpgradeHint?.tryShow();
 }
@@ -1495,7 +1522,7 @@ function canOpenShop() {
   return !(
     isFeedFlowOnScreen() ||
     runner?.isActive() ||
-    tutorial?.isActive() ||
+    isTutorialUiLocking() ||
     badFoodTip?.isActive() ||
     roadmapScreen?.isOpen()
   );
@@ -1541,9 +1568,7 @@ function restoreHomeIdleState() {
   replySystem?.hideAll();
 
   document.documentElement.classList.remove('is-lecture-active', 'is-shop-hint-active');
-  if (!tutorial?.isActive?.()) {
-    purgeTutorialChrome();
-  }
+  ensureHomeUiUnlocked();
 
   clearPurchaseOverlayState();
 
@@ -1576,7 +1601,7 @@ function tryShowHomeGreeting() {
 
   const name = gameState.getKolobokName();
   if (!name) return;
-  if (tutorial?.isActive?.()) return;
+  if (isTutorialUiLocking()) return;
   if (purchase?.isActive?.()) return;
   if (shopUpgradeHint?.isActive?.()) return;
 
@@ -1600,7 +1625,7 @@ function tryShowHomeGreeting() {
   }
 
   window.setTimeout(() => {
-    if (!tutorial?.isActive?.() && !purchase?.isActive?.()) {
+    if (!isTutorialUiLocking() && !purchase?.isActive?.()) {
       refreshPhrase(true);
     }
   }, hideMs + 250);
@@ -1750,7 +1775,7 @@ function performStageTap(clientX, clientY) {
     shopUpgradeHint.dismissLater();
     return;
   }
-  if (isFeedFlowOnScreen() || runner?.isActive() || tutorial?.isActive()) return;
+  if (isFeedFlowOnScreen() || runner?.isActive() || isTutorialUiLocking()) return;
 
   if (kolobokLecture?.isActive()) {
     kolobokLecture.dismiss();
@@ -1789,7 +1814,7 @@ function bindEvents() {
 
   ui.btnReceipt.addEventListener('click', () => {
     vibrateTap();
-    if (isFeedFlowOnScreen() || runner?.isActive() || tutorial?.isActive()) return;
+    if (isFeedFlowOnScreen() || runner?.isActive() || isTutorialUiLocking()) return;
 
     kolobokLecture?.dismiss();
     replySystem?.hideAll();
@@ -1856,7 +1881,7 @@ function bindEvents() {
 }
 
 function openShopScreen() {
-  if (runner?.isActive() || tutorial?.isActive() || badFoodTip?.isActive() || roadmapScreen?.isOpen()) {
+  if (runner?.isActive() || isTutorialUiLocking() || badFoodTip?.isActive() || roadmapScreen?.isOpen()) {
     return;
   }
   if (isFeedFlowOnScreen()) return;
@@ -2046,6 +2071,9 @@ function initFoodPhotoFeed() {
       },
       onClose: () => {
         restoreFeedDockInteractivity();
+        if (!isTutorialUiLocking()) {
+          ensureHomeUiUnlocked();
+        }
         resumeTimers();
         updateReceiptButton(gameState.get());
         if (!isOnCooldown()) kickHomeSpawns();
@@ -2166,7 +2194,7 @@ function initPurchase() {
 }
 
 function tickCriticalWarnings() {
-  if (isHomeBlocked() || tutorial?.isActive()) return;
+  if (isHomeBlocked()) return;
   const now = Date.now();
   const interval = CONFIG.criticalStat?.warnIntervalMs ?? 30000;
   if (now - lastCriticalWarnAt < interval) return;
@@ -2296,7 +2324,7 @@ export async function launchGame() {
     kolobokLecture = createKolobokLecture({
       replySystem,
       onDismiss: () => {
-        if (!isFeedFlowOnScreen() && !runner?.isActive() && !tutorial?.isActive()) {
+        if (!isFeedFlowOnScreen() && !runner?.isActive() && !isTutorialUiLocking()) {
           refreshPhrase(true);
           resumeHomeVideo();
         }
@@ -2321,7 +2349,7 @@ export async function launchGame() {
       isBlocked: () => isSpawnBlocked(),
       isSliceBlocked: () => isSliceBlocked(),
       onBeforeBadCollect: async () => {
-        if (tutorial?.isActive() || purchase?.isActive() || runner?.isActive()) return;
+        if (isTutorialUiLocking() || purchase?.isActive() || runner?.isActive()) return;
         await badFoodTip?.show();
       },
       onCollect: handleFoodCollect,
@@ -2347,20 +2375,17 @@ export async function launchGame() {
         tutorialAutoFeedUsed = false;
         resumeHomeVideo();
       },
+      onReleaseFoodModal: () => foodPhotoFeed?.forceClose?.(),
       onComplete: () => {
-        purgeTutorialChrome();
+        ensureHomeUiUnlocked({ refreshSpeech: true });
         shopUpgradeHint?.hide();
-        restoreFeedDockInteractivity();
         restoreHomeIdleState();
         currentPhrase = '';
-        refreshPhrase(true);
         resumeHomeVideo();
         const greetDelay = CONFIG.greeting?.delayMs ?? 600;
         window.setTimeout(() => tryShowHomeGreeting(), greetDelay);
         window.setTimeout(() => {
-          purgeTutorialChrome();
-          refreshPhrase(true);
-          resumeHomeVideo();
+          ensureHomeUiUnlocked({ refreshSpeech: true });
           tryShowShopUpgradeHint();
         }, 1500);
       },
@@ -2471,8 +2496,14 @@ export async function launchGame() {
     };
 
     window.addEventListener('resize', () => {
-      if (purchase?.isActive() || tutorial?.isActive()) return;
+      if (purchase?.isActive() || isTutorialUiLocking()) return;
       repositionSpeech();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!isTutorialCompleted()) return;
+      ensureHomeUiUnlocked({ refreshSpeech: true });
     });
 
     purgeTutorialChrome();
