@@ -149,6 +149,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   let active = false;
   let previewUrl = null;
   let pendingFeedBoost = null;
+  let pendingFood = null;
 
   function isOpen() {
     return active && modal?.classList.contains('is-open');
@@ -212,6 +213,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       return;
     }
     pendingFeedBoost = null;
+    pendingFood = null;
     setOpen(false);
     callbacks.onClose?.();
   }
@@ -279,7 +281,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     if (resultPhrase) resultPhrase.textContent = phrase;
     callbacks.onPhrase?.(phrase);
     showState('result');
-    applyFeed(food);
+    pendingFood = food;
     kolobokEat();
   }
 
@@ -361,8 +363,12 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     }
 
     btnDone?.addEventListener('click', () => {
+      if (pendingFood) {
+        applyFeed(pendingFood);
+      }
       const boost = pendingFeedBoost;
       pendingFeedBoost = null;
+      pendingFood = null;
       close();
       callbacks.onComplete?.(boost);
     });
