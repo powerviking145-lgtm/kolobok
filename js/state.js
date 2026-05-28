@@ -575,6 +575,18 @@ export const gameState = {
     emitChange();
   },
 
+  /** Поднять стата минимум до display % (не опускает, если уже выше). Возвращает прирост в пунктах шкалы. */
+  raiseStatToDisplayPercent(statKey, percent) {
+    if (!isStatKey(statKey)) return 0;
+    ensureStatsShape(state);
+    const target = percentToAbsolute(percent);
+    const prev = state.stats[statKey].current;
+    const next = clampStat(statKey, Math.max(prev, target));
+    state.stats[statKey].current = next;
+    if (next !== prev) emitChange();
+    return next - prev;
+  },
+
   load() {
     try {
       const raw = localStorage.getItem(CONFIG.storageKey);

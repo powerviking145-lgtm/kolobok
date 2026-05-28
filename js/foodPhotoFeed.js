@@ -40,6 +40,11 @@ function getEffects(food) {
   return byKind[food.kind] ?? byKind.neutral ?? { hunger: 10, mood: 8 };
 }
 
+function isDrinkFood(food) {
+  const drinkIds = new Set(CONFIG.feedLoop?.drinkFoodIds ?? []);
+  return Boolean(food?.id && drinkIds.has(food.id));
+}
+
 async function recognizeFood(file) {
   if (isGeminiFoodPhotoReady()) {
     try {
@@ -143,6 +148,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
 
   let active = false;
   let previewUrl = null;
+  let pendingFeedBoost = null;
 
   function isOpen() {
     return active && modal?.classList.contains('is-open');
@@ -205,6 +211,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       document.getElementById('footer-buttons')?.classList.remove('is-hidden');
       return;
     }
+    pendingFeedBoost = null;
     setOpen(false);
     callbacks.onClose?.();
   }
@@ -230,23 +237,38 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   function applyFeed(food) {
     const effects = getEffects(food);
     const moodBonus = cfg().moodBonus ?? 2;
-    const boosts = { ...effects };
-    if (moodBonus) boosts.mood = (boosts.mood ?? 0) + moodBonus;
+    const fillPct = cfg().fillPrimaryStatPercent ?? 80;
+    const drink = isDrinkFood(food);
+    const primaryKey = drink ? 'thirst' : 'hunger';
 
     const before = {};
-    Object.entries(boosts).forEach(([key, val]) => {
-      if (val) before[key] = gameState.getStatDisplayPercent(key);
+    const boosts = {};
+
+    before[primaryKey] = gameState.getStatDisplayPercent(primaryKey);
+    gameState.raiseStatToDisplayPercent(primaryKey, fillPct);
+    const primaryAfter = gameState.getStatDisplayPercent(primaryKey);
+    const primaryGain = primaryAfter - before[primaryKey];
+    if (primaryGain > 0) boosts[primaryKey] = primaryGain;
+
+    Object.entries(effects).forEach(([key, val]) => {
+      if (!val || key === 'hunger' || key === 'thirst') return;
+      before[key] = gameState.getStatDisplayPercent(key);
+      gameState.changeStat(key, val);
+      boosts[key] = val;
     });
 
-    Object.entries(boosts).forEach(([key, val]) => {
-      if (val) gameState.changeStat(key, val);
-    });
+    if (moodBonus) {
+      if (before.mood === undefined) before.mood = gameState.getStatDisplayPercent('mood');
+      gameState.changeStat('mood', moodBonus);
+      boosts.mood = (boosts.mood ?? 0) + moodBonus;
+    }
+
     const pts = cfg().tapScorePoints ?? 2;
     if (pts) gameState.addTapScore(pts);
     gameState.recordPhotoFeed?.(food);
     gameState.recordFoodInteraction?.();
     gameState.save();
-    callbacks.onStatsApplied?.({ before, boosts, food });
+    pendingFeedBoost = { before, boosts, food };
   }
 
   function showResult(food, { customComment } = {}) {
@@ -334,9 +356,15 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
 
     closeBtn?.addEventListener('click', close);
     backdrop?.addEventListener('click', close);
+    if (btnDone && cfg().feedButtonLabel) {
+      btnDone.textContent = cfg().feedButtonLabel;
+    }
+
     btnDone?.addEventListener('click', () => {
+      const boost = pendingFeedBoost;
+      pendingFeedBoost = null;
       close();
-      callbacks.onComplete?.();
+      callbacks.onComplete?.(boost);
     });
     btnErrorClose?.addEventListener('click', close);
 

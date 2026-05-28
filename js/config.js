@@ -742,6 +742,9 @@ export const CONFIG = {
     titleAnalyze: 'Смотрю, что ты принёс…',
     titleConfirm: 'Угадал? Тапни, если не то',
     titleResult: 'Зашло!',
+    feedButtonLabel: 'Покормить',
+    /** Жидкость → жажда, еда → сытость, минимум до этого % HUD */
+    fillPrimaryStatPercent: 80,
     titleError: 'Не разобрал фото',
     pickHint: 'Колобок почти уверен — поправь, если промахнулся.',
     phraseHideMs: 12000,

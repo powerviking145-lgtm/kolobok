@@ -1567,6 +1567,26 @@ html.is-bad-food-tip-active .tutorial-dots {
   animation: stat-boost-float-up 1s ease-out forwards;
 }
 
+.stat-chip__boost-float--prominent {
+  font-size: clamp(1.2rem, 7vw, 1.75rem);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  top: -0.45rem;
+  z-index: 40;
+  text-shadow:
+    0 0.12rem 0.35rem rgba(0, 0, 0, 0.85),
+    0 0 0.65rem var(--boost-color, #f5a623);
+  animation: stat-boost-float-prominent 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.stat-chip__pct--feed-rise {
+  font-size: clamp(0.95rem, 4.5vw, 1.125rem) !important;
+  transform: scale(1.12);
+  transform-origin: right center;
+  transition: transform 0.15s ease;
+  text-shadow: 0 0 0.4rem var(--stat-color, #f5a623);
+}
+
 @keyframes stat-boost-float-up {
   0% {
     opacity: 0;
@@ -1578,6 +1598,24 @@ html.is-bad-food-tip-active .tutorial-dots {
   100% {
     opacity: 0;
     transform: translate(-50%, -1.1rem);
+  }
+}
+
+@keyframes stat-boost-float-prominent {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0.55rem) scale(0.82);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.12);
+  }
+  40% {
+    transform: translate(-50%, -0.35rem) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -1.85rem) scale(1);
   }
 }
 

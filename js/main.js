@@ -183,22 +183,24 @@ function pulseStat(statKey) {
   fill.classList.add('top-stat__fill--pulse');
 }
 
-function showStatBoostFloat(row, text, colorHex) {
+function showStatBoostFloat(row, text, colorHex, { prominent = false } = {}) {
   const float = document.createElement('span');
-  float.className = 'stat-chip__boost-float';
+  float.className = prominent
+    ? 'stat-chip__boost-float stat-chip__boost-float--prominent'
+    : 'stat-chip__boost-float';
   float.textContent = text;
   float.style.setProperty('--boost-color', colorHex || '#F5A623');
   row.style.position = 'relative';
   row.appendChild(float);
-  window.setTimeout(() => float.remove(), 1100);
+  window.setTimeout(() => float.remove(), prominent ? 1500 : 1100);
 }
 
 /** Какую одну стата подсветить при кормлении (остальные просто обновляются). */
 function getFeedHighlightStatKeys(food, boosts) {
   if (!boosts) return [];
   const drinkIds = new Set(CONFIG.feedLoop?.drinkFoodIds ?? []);
-  if (food?.id && drinkIds.has(food.id) && boosts.thirst > 0) return ['thirst'];
-  if (boosts.hunger > 0) return ['hunger'];
+  if (food?.id && drinkIds.has(food.id)) return boosts.thirst > 0 ? ['thirst'] : [];
+  return boosts.hunger > 0 ? ['hunger'] : [];
   let bestKey = null;
   let bestDelta = 0;
   Object.entries(boosts).forEach(([key, delta]) => {
@@ -211,11 +213,11 @@ function getFeedHighlightStatKeys(food, boosts) {
 }
 
 /** Плавный подъём одной полоски после кормления; блок статов как в 143. */
-function animateStatFeedBoost({ before, boosts, food, highlightKeys }) {
+function animateStatFeedBoost({ before, boosts, food, highlightKeys, prominent = false }) {
   if (!before || !boosts) return;
   const stats = gameState.get();
   const themes = CONFIG.topPanel?.statThemes ?? {};
-  const duration = 750;
+  const duration = prominent ? 1050 : 750;
   const keys =
     highlightKeys?.length > 0
       ? highlightKeys.filter((key) => boosts[key] > 0 && before[key] !== undefined)
@@ -251,7 +253,10 @@ function animateStatFeedBoost({ before, boosts, food, highlightKeys }) {
       fill.style.width = `${to}%`;
     }
 
-    if (pctEl) pctEl.textContent = `${from}%`;
+    if (pctEl) {
+      pctEl.textContent = `${from}%`;
+      if (prominent) pctEl.classList.add('stat-chip__pct--feed-rise');
+    }
 
     const start = performance.now();
     const tick = (now) => {
@@ -262,6 +267,7 @@ function animateStatFeedBoost({ before, boosts, food, highlightKeys }) {
       if (t < 1) {
         requestAnimationFrame(tick);
       } else {
+        pctEl?.classList.remove('stat-chip__pct--feed-rise');
         updateStatsBars(gameState.get());
         pulseStat(key);
       }
@@ -269,7 +275,7 @@ function animateStatFeedBoost({ before, boosts, food, highlightKeys }) {
     requestAnimationFrame(tick);
 
     if (row && delta > 0) {
-      showStatBoostFloat(row, `+${Math.round(delta)}`, theme.hex);
+      showStatBoostFloat(row, `+${Math.round(delta)}`, theme.hex, { prominent });
     }
   });
 
@@ -1743,28 +1749,21 @@ function initFoodPhotoFeed() {
           hideMs: CONFIG.foodPhoto?.phraseHideMs ?? 12000,
         });
       },
-      onStatsApplied: (payload) => {
-        if (payload?.before && payload?.boosts) {
-          animateStatFeedBoost(payload);
-          return;
-        }
-        const stats = gameState.get();
-        currentMood = getMood(stats);
-        updateStatsBars(stats);
-        updateScoreHub(true);
-        updateKolobokMood(currentMood);
-      },
-      onComplete: () => {
+      onComplete: (feedBoost) => {
         if (isCooldownEnabled()) setLastFeedTimestamp();
-        const stats = gameState.get();
-        currentMood = getMood(stats);
-        updateStatsBars(stats);
-        updateKolobokMood(currentMood);
-        gameState.save();
         restoreFeedDockInteractivity();
         stopFeedCooldownTicker();
-        updateReceiptButton(stats);
+        updateReceiptButton(gameState.get());
         if (isCooldownEnabled()) ensureFeedCooldownTicker();
+        if (feedBoost?.before && feedBoost?.boosts) {
+          animateStatFeedBoost({ ...feedBoost, prominent: true });
+        } else {
+          const stats = gameState.get();
+          currentMood = getMood(stats);
+          updateStatsBars(stats);
+          updateKolobokMood(currentMood);
+        }
+        gameState.save();
         resumeHomeAfterFeed([]);
         resumeHomeVideo();
         refreshPhrase(true);
