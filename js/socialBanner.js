@@ -11,6 +11,9 @@ export function initSocialBanner(
   const cfg = CONFIG.socialBanner ?? {};
   const countEl = bannerEl.querySelector('.social-banner__count');
   const lifeCountEl = document.getElementById('life-banner-count');
+  const lifeBannerEl = document.getElementById('life-banner');
+  let lastLifeLabel = null;
+  let lifePulseTimeoutId = null;
   if (countEl) {
     countEl.textContent = String(getTotalPlayers());
   }
@@ -19,14 +22,27 @@ export function initSocialBanner(
     if (!lifeCountEl) return;
     const bornAt = Number(gameState.get()?.bornAt) || Date.now();
     const elapsed = Math.max(0, Date.now() - bornAt);
+    const totalMinutes = Math.max(1, Math.floor(elapsed / (60 * 1000)));
     const totalHours = Math.max(1, Math.floor(elapsed / (60 * 60 * 1000)));
-    const days = Math.floor(totalHours / 24);
-    const hours = totalHours % 24;
-    if (days <= 0) {
-      lifeCountEl.textContent = `${hours} ч`;
-      return;
+    const totalDays = Math.max(1, Math.floor(elapsed / (24 * 60 * 60 * 1000)));
+
+    // 0-59м -> минуты; 1-23ч -> часы; 1+д -> дни.
+    const lifeLabel =
+      totalMinutes < 60 ? `${totalMinutes} м` : totalHours < 24 ? `${totalHours} ч` : `${totalDays} д`;
+
+    lifeCountEl.textContent = lifeLabel;
+
+    if (lastLifeLabel != null && lifeLabel !== lastLifeLabel && lifeBannerEl) {
+      lifeBannerEl.classList.remove('is-life-pulse');
+      void lifeBannerEl.offsetWidth;
+      lifeBannerEl.classList.add('is-life-pulse');
+      if (lifePulseTimeoutId) window.clearTimeout(lifePulseTimeoutId);
+      lifePulseTimeoutId = window.setTimeout(() => {
+        lifeBannerEl.classList.remove('is-life-pulse');
+        lifePulseTimeoutId = null;
+      }, 900);
     }
-    lifeCountEl.textContent = `${days} д ${hours} ч`;
+    lastLifeLabel = lifeLabel;
   }
 
   renderLife();
@@ -64,5 +80,6 @@ export function initSocialBanner(
     if (shimmerTimerId) window.clearTimeout(shimmerTimerId);
     if (shimmerIntervalId) window.clearInterval(shimmerIntervalId);
     if (lifeTimerId) window.clearInterval(lifeTimerId);
+    if (lifePulseTimeoutId) window.clearTimeout(lifePulseTimeoutId);
   };
 }

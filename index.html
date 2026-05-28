@@ -191,7 +191,7 @@
 
               <span class="social-banner__icon" aria-hidden="true">🍞</span>
 
-              <span class="social-banner__text">Нас уже <strong class="social-banner__count" id="social-banner-count">0</strong> мякишей</span>
+              <span class="social-banner__text">Нас уже <strong class="social-banner__count" id="social-banner-count">0</strong></span>
 
               <span class="social-banner__go" aria-hidden="true"></span>
 
@@ -203,9 +203,9 @@
 
             <span class="social-banner__pill">
 
-              <span class="social-banner__icon" aria-hidden="true">⏳</span>
+              <span class="social-banner__icon" aria-hidden="true">❤</span>
 
-              <span class="social-banner__text"><strong class="social-banner__count" id="life-banner-count">0 дн</strong> живу в печке</span>
+              <span class="social-banner__text"><strong class="social-banner__count" id="life-banner-count">0 ч</strong> живу в печке</span>
 
             </span>
 
@@ -303,8 +303,8 @@
       <div class="death-modal" id="death-modal" hidden aria-hidden="true">
         <div class="death-modal__backdrop"></div>
         <div class="death-modal__card" role="dialog" aria-modal="true" aria-labelledby="death-modal-title">
-          <p class="death-modal__title" id="death-modal-title">Колобок погиб</p>
-          <p class="death-modal__text" id="death-modal-text">Здоровье упало до нуля. Испечь нового колобка?</p>
+          <p class="death-modal__title" id="death-modal-title">Колобок остыл</p>
+          <p class="death-modal__text" id="death-modal-text">Запас сил закончился. Испечь нового колобка?</p>
           <div class="death-modal__actions">
             <button type="button" class="btn btn--primary" id="death-modal-rebake">Испечь нового</button>
           </div>
@@ -1053,7 +1053,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '161';
+      var BUILD = '164';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

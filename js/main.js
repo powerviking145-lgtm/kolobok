@@ -390,8 +390,8 @@ function updateDeathState(stats) {
     const titleEl = document.getElementById('death-modal-title');
     const textEl = document.getElementById('death-modal-text');
     const rebakeBtn = document.getElementById('death-modal-rebake');
-    if (titleEl) titleEl.textContent = tp.death?.title ?? 'Колобок погиб';
-    if (textEl) textEl.textContent = tp.death?.text ?? 'Здоровье упало до нуля. Испечь нового?';
+    if (titleEl) titleEl.textContent = tp.death?.title ?? 'Колобок остыл';
+    if (textEl) textEl.textContent = tp.death?.text ?? 'Запас сил закончился. Испечь нового?';
     if (rebakeBtn) rebakeBtn.textContent = tp.death?.rebakeLabel ?? 'Испечь нового';
   }
 
