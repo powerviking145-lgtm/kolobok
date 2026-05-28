@@ -2,7 +2,7 @@ import { initTelegram } from './telegram.js';
 import { initViewport } from './viewport.js';
 import { launchGame } from './main.js';
 
-const BUILD = window.__KOLOBOK_BUILD || '158';
+const BUILD = window.__KOLOBOK_BUILD || '160';
 
 const stylesheet = document.getElementById('app-stylesheet');
 if (stylesheet) {

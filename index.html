@@ -183,19 +183,35 @@
 
         </div>
 
-        <button type="button" class="social-banner" id="social-banner" aria-label="Открыть роудмэп сообщества">
+        <div class="social-banner-row">
 
-          <span class="social-banner__pill">
+          <button type="button" class="social-banner" id="social-banner" aria-label="Открыть роудмэп сообщества">
 
-            <span class="social-banner__icon" aria-hidden="true">🍞</span>
+            <span class="social-banner__pill">
 
-            <span class="social-banner__text">Нас уже <strong class="social-banner__count" id="social-banner-count">0</strong> мякишей</span>
+              <span class="social-banner__icon" aria-hidden="true">🍞</span>
 
-            <span class="social-banner__go" aria-hidden="true"></span>
+              <span class="social-banner__text">Нас уже <strong class="social-banner__count" id="social-banner-count">0</strong> мякишей</span>
 
-          </span>
+              <span class="social-banner__go" aria-hidden="true"></span>
 
-        </button>
+            </span>
+
+          </button>
+
+          <div class="social-banner social-banner--life" id="life-banner" aria-live="polite">
+
+            <span class="social-banner__pill">
+
+              <span class="social-banner__icon" aria-hidden="true">⏳</span>
+
+              <span class="social-banner__text"><strong class="social-banner__count" id="life-banner-count">0 дн</strong> живу в печке</span>
+
+            </span>
+
+          </div>
+
+        </div>
 
         <div class="top-panel__row top-panel__row--stats">
 
@@ -1026,7 +1042,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '158';
+      var BUILD = '160';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

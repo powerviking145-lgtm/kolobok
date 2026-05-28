@@ -1267,6 +1267,13 @@ html.is-bad-food-tip-active .tutorial-dots {
   color: #c97070;
 }
 
+.social-banner-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.3rem, 1.4vw, 0.45rem);
+  width: 100%;
+}
+
 .social-banner {
   display: flex;
   align-items: center;
@@ -1279,6 +1286,32 @@ html.is-bad-food-tip-active .tutorial-dots {
   font-family: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+.social-banner-row .social-banner {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: clamp(0.2rem, 0.9vw, 0.3rem);
+  padding-right: clamp(0.2rem, 0.9vw, 0.3rem);
+}
+
+.social-banner--life {
+  cursor: default;
+}
+
+.social-banner--life .social-banner__pill {
+  border-color: rgba(108, 178, 255, 0.45);
+  box-shadow:
+    0 0 0.5rem rgba(108, 178, 255, 0.16),
+    0 0.2rem 0.65rem rgba(0, 0, 0, 0.35),
+    inset 0 0.0625rem 0 rgba(200, 230, 255, 0.2);
+}
+
+.social-banner--life .social-banner__count {
+  background: linear-gradient(180deg, #c4e9ff 0%, #77b7ff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .social-banner__pill {

@@ -272,6 +272,7 @@ export function normalizeState(raw = {}) {
     kolobokName: null,
     pvpWins: 0,
     pvpLosses: 0,
+    bornAt: Date.now(),
     lastPlayed: Date.now(),
     badFoodTipDay: null,
     foodInteractCount: 0,
@@ -319,6 +320,9 @@ export function normalizeState(raw = {}) {
   }
   if (raw.pvpWins != null) merged.pvpWins = Math.max(0, Math.floor(raw.pvpWins));
   if (raw.pvpLosses != null) merged.pvpLosses = Math.max(0, Math.floor(raw.pvpLosses));
+  if (raw.bornAt != null) merged.bornAt = Number(raw.bornAt) || merged.bornAt;
+  else if (raw.firstPlayed != null) merged.bornAt = Number(raw.firstPlayed) || merged.bornAt;
+  else if (raw.lastPlayed != null) merged.bornAt = Number(raw.lastPlayed) || merged.bornAt;
   if (raw.lastPlayed != null) merged.lastPlayed = raw.lastPlayed;
   if (raw.badFoodTipDay != null) merged.badFoodTipDay = raw.badFoodTipDay;
   if (raw.foodInteractCount != null) {
@@ -349,6 +353,7 @@ function flattenForUi(src = state) {
     tutorials: { ...src.tutorials },
     bestDistance: src.bestDistance ?? 0,
     bestScore: src.bestScore ?? 0,
+    bornAt: src.bornAt ?? Date.now(),
     lastPlayed: src.lastPlayed,
     badFoodTipDay: src.badFoodTipDay,
     foodInteractCount: src.foodInteractCount ?? 0,
