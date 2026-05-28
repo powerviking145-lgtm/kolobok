@@ -17,6 +17,7 @@ export function createTutorialController({
   spotlight,
   card,
   textEl,
+  examplesEl,
   nextBtn,
   skipBtn,
   dotsEl,
@@ -42,6 +43,34 @@ export function createTutorialController({
     dotsEl.innerHTML = steps
       .map((_, i) => `<span class="tutorial-dot${i === currentStep ? ' is-active' : ''}"></span>`)
       .join('');
+  }
+
+  function renderExamples(step) {
+    if (!examplesEl) return;
+    const examples = Array.isArray(step?.examples) ? step.examples : [];
+    if (!examples.length) {
+      examplesEl.setAttribute('hidden', '');
+      examplesEl.replaceChildren();
+      return;
+    }
+    examplesEl.innerHTML = examples
+      .map((item) => {
+        const src = String(item?.src ?? '').trim();
+        if (!src) return '';
+        const label = String(item?.label ?? '').trim();
+        return `
+          <figure class="tutorial-example">
+            <img src="${src}" alt="${label || 'Пример фото'}" loading="lazy" decoding="async" />
+            ${label ? `<figcaption>${label}</figcaption>` : ''}
+          </figure>
+        `;
+      })
+      .join('');
+    if (examplesEl.innerHTML.trim()) {
+      examplesEl.removeAttribute('hidden');
+    } else {
+      examplesEl.setAttribute('hidden', '');
+    }
   }
 
   /** Реальные границы оверлея — для spotlight и привязки к target. */
@@ -457,6 +486,7 @@ export function createTutorialController({
     currentStep = index;
     renderDots();
     if (textEl) textEl.textContent = step.text;
+    renderExamples(step);
     if (card) {
       card.style.visibility = 'visible';
       card.style.display = 'block';

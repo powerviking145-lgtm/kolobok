@@ -2241,6 +2241,7 @@ export async function launchGame() {
       overlay: document.getElementById('tutorial-overlay'),
       card: document.getElementById('tutorial-card'),
       textEl: document.getElementById('tutorial-text'),
+      examplesEl: document.getElementById('tutorial-examples'),
       nextBtn: document.getElementById('tutorial-next'),
       dotsEl: document.getElementById('tutorial-dots'),
       skipBtn: document.getElementById('tutorial-skip'),

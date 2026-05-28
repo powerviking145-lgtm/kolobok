@@ -5792,6 +5792,54 @@ html.is-tutorial-active .stage-hero.tutorial-highlight {
   margin-bottom: 0.75rem;
 }
 
+.tutorial-examples {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin: 0 0 0.7rem;
+}
+
+.tutorial-example {
+  margin: 0;
+  border: 0.0625rem solid rgba(42, 31, 26, 0.16);
+  border-radius: 0.55rem;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  opacity: 0;
+  transform: translateY(0.35rem) scale(0.985);
+  animation: tutorial-example-in 0.38s ease forwards;
+  will-change: transform, opacity;
+}
+
+.tutorial-example:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.tutorial-example img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.tutorial-example figcaption {
+  padding: 0.28rem 0.35rem 0.3rem;
+  font-size: 0.66rem;
+  line-height: 1.25;
+  color: rgba(42, 31, 26, 0.82);
+}
+
+@keyframes tutorial-example-in {
+  0% {
+    opacity: 0;
+    transform: translateY(0.35rem) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .tutorial-card__next {
   width: 100%;
   margin-bottom: 0.55rem;

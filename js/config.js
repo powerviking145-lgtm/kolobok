@@ -433,6 +433,10 @@ export const CONFIG = {
         targetSelector: '#food-photo-modal .food-photo-pick-actions',
         cardPlacement: 'top',
         text: 'Можно с камеры или из галереи. На Android иногда только галерея — это нормально.',
+        examples: [
+          { src: 'assets/tutorial/food-fish-example.png', label: 'Пример еды: рыба' },
+          { src: 'assets/tutorial/water-example.png', label: 'Пример воды: бутылка' },
+        ],
         action: 'open_photo_modal',
         buttonText: 'Понял',
       },
