@@ -252,6 +252,14 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     const primaryGain = primaryAfter - before[primaryKey];
     if (primaryGain > 0) boosts[primaryKey] = primaryGain;
 
+    before.health = gameState.getStatDisplayPercent('health');
+    before.mood = gameState.getStatDisplayPercent('mood');
+    gameState.syncDerivedFromPrimary({ immediate: true });
+    const healthAfter = gameState.getStatDisplayPercent('health');
+    const moodAfter = gameState.getStatDisplayPercent('mood');
+    if (healthAfter > before.health) boosts.health = healthAfter - before.health;
+    if (moodAfter > before.mood) boosts.mood = moodAfter - before.mood;
+
     const pts = cfg().tapScorePoints ?? 2;
     if (pts) gameState.addTapScore(pts);
     gameState.recordPhotoFeed?.(food);

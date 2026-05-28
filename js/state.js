@@ -379,11 +379,12 @@ function getHomeDecayPerTick() {
     const dropPct = d.fixedDropDisplayPercent ?? 1;
     const scale = statScaleMax();
     const perTick = (dropPct / 100) * scale;
-    const rates = {};
-    STAT_DECAY_KEYS.forEach((key) => {
-      rates[key] = perTick;
-    });
-    return rates;
+    return {
+      hunger: perTick,
+      thirst: perTick,
+      health: 0,
+      mood: 0,
+    };
   }
   const ms90 = 90 * 60 * 1000;
   const homeTickMs = d.tickMs * (d.homeSlowdown ?? 1);
@@ -438,14 +439,16 @@ function applyHealthHybridAfterDecay() {
   const syncStep = Math.max(0, Math.floor(cfg.syncStepPerTick ?? 1));
 
   if (syncStep > 0) {
-    const currentHealth = getStatCurrent('health', state);
-    if (currentHealth < target) {
-      state.stats.health.current = clampStat('health', currentHealth + syncStep, state);
-      changed = true;
-    } else if (currentHealth > target) {
-      state.stats.health.current = clampStat('health', currentHealth - syncStep, state);
-      changed = true;
-    }
+    ['health', 'mood'].forEach((key) => {
+      const current = getStatCurrent(key, state);
+      if (current < target) {
+        state.stats[key].current = clampStat(key, current + syncStep, state);
+        changed = true;
+      } else if (current > target) {
+        state.stats[key].current = clampStat(key, current - syncStep, state);
+        changed = true;
+      }
+    });
   }
 
   const starving = hunger <= 0 && thirst <= 0;
@@ -673,6 +676,36 @@ export const gameState = {
     state.stats[statKey].current = next;
     if (next !== prev) emitChange();
     return next - prev;
+  },
+
+  /** Синхронно подтянуть health/mood к среднему hunger+thirst (для явного апдейта после кормления). */
+  syncDerivedFromPrimary({ immediate = false, step = null } = {}) {
+    ensureStatsShape(state);
+    const target = Math.round((getStatCurrent('hunger', state) + getStatCurrent('thirst', state)) / 2);
+    const deltas = { health: 0, mood: 0 };
+    const syncStep = Math.max(1, Math.floor(step ?? (CONFIG.healthHybrid?.syncStepPerTick ?? 1)));
+    let changed = false;
+
+    ['health', 'mood'].forEach((key) => {
+      const prev = getStatCurrent(key, state);
+      let next = prev;
+      if (immediate) {
+        next = target;
+      } else if (prev < target) {
+        next = prev + syncStep;
+      } else if (prev > target) {
+        next = prev - syncStep;
+      }
+      next = clampStat(key, next, state);
+      if (next !== prev) {
+        state.stats[key].current = next;
+        deltas[key] = next - prev;
+        changed = true;
+      }
+    });
+
+    if (changed) emitChange();
+    return deltas;
   },
 
   load() {
