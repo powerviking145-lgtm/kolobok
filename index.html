@@ -739,19 +739,19 @@
 
                 class="shop-screen__tab is-active"
 
-                id="shop-tab-houses"
+                id="shop-tab-upgrade"
 
                 role="tab"
 
                 aria-selected="true"
 
-                aria-controls="shop-panel-houses"
+                aria-controls="shop-panel-upgrade"
 
-                data-shop-tab="houses"
+                data-shop-tab="upgrade"
 
               >
 
-                <span aria-hidden="true">🏠</span> Дома
+                <span aria-hidden="true">💪</span> Прокачка
 
               </button>
 
@@ -761,19 +761,19 @@
 
                 class="shop-screen__tab"
 
-                id="shop-tab-upgrade"
+                id="shop-tab-houses"
 
                 role="tab"
 
                 aria-selected="false"
 
-                aria-controls="shop-panel-upgrade"
+                aria-controls="shop-panel-houses"
 
-                data-shop-tab="upgrade"
+                data-shop-tab="houses"
 
               >
 
-                <span aria-hidden="true">💪</span> Прокачка
+                <span aria-hidden="true">🏠</span> Дома
 
               </button>
 
@@ -805,15 +805,15 @@
 
               class="shop-screen__panel is-active"
 
-              id="shop-panel-houses"
+              id="shop-panel-upgrade"
 
               role="tabpanel"
 
-              aria-labelledby="shop-tab-houses"
+              aria-labelledby="shop-tab-upgrade"
 
             >
 
-              <ul class="shop-houses" id="shop-houses-list" aria-live="polite"></ul>
+              <ul class="shop-upgrades" id="shop-upgrade-list" aria-live="polite"></ul>
 
             </section>
 
@@ -821,17 +821,17 @@
 
               class="shop-screen__panel"
 
-              id="shop-panel-upgrade"
+              id="shop-panel-houses"
 
               role="tabpanel"
 
-              aria-labelledby="shop-tab-upgrade"
+              aria-labelledby="shop-tab-houses"
 
               hidden
 
             >
 
-              <ul class="shop-upgrades" id="shop-upgrade-list" aria-live="polite"></ul>
+              <ul class="shop-houses" id="shop-houses-list" aria-live="polite"></ul>
 
             </section>
 
@@ -1026,7 +1026,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '156';
+      var BUILD = '158';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

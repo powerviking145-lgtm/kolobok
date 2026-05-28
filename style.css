@@ -2523,6 +2523,13 @@ html.is-bad-food-tip-active .tutorial-dots {
   pointer-events: auto;
 }
 
+.shop-tutorial__target {
+  position: relative;
+  z-index: 3 !important;
+  box-shadow: 0 0 0 0.14rem rgba(255, 220, 130, 0.92), 0 0 1rem 0.28rem rgba(245, 166, 35, 0.58) !important;
+  border-radius: 0.75rem;
+}
+
 .shop-upgrade-hint {
   position: absolute;
   left: 50%;
@@ -2533,10 +2540,10 @@ html.is-bad-food-tip-active .tutorial-dots {
   align-items: center;
   text-align: center;
   gap: clamp(0.45rem, 2vw, 0.55rem);
-  width: min(92%, 18.5rem);
+  width: min(95%, 24rem);
   max-width: 92%;
   margin: 0;
-  padding: clamp(0.75rem, 3.2vw, 0.9rem) clamp(0.85rem, 3.5vw, 1rem);
+  padding: clamp(0.95rem, 3.8vw, 1.2rem) clamp(1rem, 4.2vw, 1.25rem);
   background: linear-gradient(135deg, #fff5e1 0%, #ffedc9 100%);
   border: 0.125rem solid #ffb84d;
   border-radius: clamp(0.85rem, 3.8vw, 1.125rem);
@@ -2561,7 +2568,7 @@ html.is-bad-food-tip-active .tutorial-dots {
 
 .shop-upgrade-hint__text {
   margin: 0;
-  font-size: clamp(0.82rem, 3.5vw, 0.9rem);
+  font-size: clamp(0.92rem, 3.9vw, 1.02rem);
   font-weight: 600;
   color: var(--izba-text-dark, #2a1a0f);
   line-height: 1.4;
@@ -2594,6 +2601,9 @@ html.is-bad-food-tip-active .tutorial-dots {
   pointer-events: auto;
   position: relative;
   z-index: 1;
+  min-height: clamp(3rem, 11vw, 3.5rem);
+  font-size: clamp(0.95rem, 4vw, 1.06rem);
+  padding: clamp(0.72rem, 3vw, 0.9rem) clamp(0.95rem, 3.8vw, 1.2rem);
 }
 
 html.is-shop-hint-active #idle-chat-bubble,
@@ -2604,6 +2614,49 @@ html.is-shop-hint-active #action-prompt {
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+}
+
+html.is-shop-hint-active::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  background: rgba(0, 0, 0, 0.58);
+  pointer-events: none;
+}
+
+html.is-shop-hint-active #shop-upgrade-hint {
+  z-index: 205;
+}
+
+html.is-shop-hint-active #footer-buttons .btn,
+html.is-shop-hint-active #btn-menu,
+html.is-shop-hint-active #btn-exit,
+html.is-shop-hint-active #btn-tutorial {
+  pointer-events: none !important;
+}
+
+html.is-shop-hint-active #btn-shop.shop-hint-highlight {
+  pointer-events: auto !important;
+}
+
+html.is-shop-hint-active #btn-shop.shop-hint-highlight {
+  position: relative;
+  z-index: 206 !important;
+  box-shadow:
+    0 0 0 0.14rem rgba(255, 223, 137, 0.92),
+    0 0 1.15rem 0.35rem rgba(245, 166, 35, 0.65) !important;
+  animation: shopHintPulse 1.05s ease-in-out infinite;
+}
+
+@keyframes shopHintPulse {
+  0%,
+  100% {
+    transform: translateZ(0) scale(1);
+  }
+  50% {
+    transform: translateZ(0) scale(1.03);
+  }
 }
 
 #app.is-shop-active .shop-screen {

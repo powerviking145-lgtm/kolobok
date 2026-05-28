@@ -1,5 +1,6 @@
 import { CONFIG } from './config.js';
 import { gameState } from './state.js';
+import { vibrate, vibrateTap } from './homeUi.js';
 
 function hintCfg() {
   return CONFIG.shop?.upgradeHint ?? {};
@@ -24,6 +25,12 @@ export function createShopUpgradeHint({
   onDismiss,
 } = {}) {
   let active = false;
+  const shopBtn = document.getElementById('btn-shop');
+
+  function setShopHighlight(on) {
+    if (!shopBtn) return;
+    shopBtn.classList.toggle('shop-hint-highlight', !!on);
+  }
 
   function markShown() {
     gameState.setTutorialFlag('upgradeHintShown', true);
@@ -37,6 +44,7 @@ export function createShopUpgradeHint({
     root.setAttribute('aria-hidden', 'true');
     root.classList.remove('is-visible');
     document.documentElement.classList.remove('is-shop-hint-active');
+    setShopHighlight(false);
   }
 
   function dismiss() {
@@ -54,10 +62,12 @@ export function createShopUpgradeHint({
     if (laterBtn && cfg.btnLater) laterBtn.textContent = cfg.btnLater;
 
     active = true;
+    vibrate(CONFIG.ui?.hapticUpgradeHintShow ?? [12, 18]);
     root.removeAttribute('hidden');
     root.setAttribute('aria-hidden', 'false');
     root.classList.add('is-visible');
     document.documentElement.classList.add('is-shop-hint-active');
+    setShopHighlight(true);
     return true;
   }
 
@@ -69,6 +79,7 @@ export function createShopUpgradeHint({
   function openShop(e) {
     e?.preventDefault?.();
     e?.stopPropagation?.();
+    vibrate(CONFIG.ui?.hapticUpgradeHintOpen ?? [16, 14, 22]);
     markShown();
     hide();
     window.setTimeout(() => onOpenShop?.(), 0);
@@ -77,6 +88,7 @@ export function createShopUpgradeHint({
   function onLater(e) {
     e?.preventDefault?.();
     e?.stopPropagation?.();
+    vibrateTap();
     dismiss();
   }
 
@@ -89,6 +101,12 @@ export function createShopUpgradeHint({
   openBtn?.addEventListener('pointerdown', stopPointer, true);
   laterBtn?.addEventListener('click', onLater);
   laterBtn?.addEventListener('pointerdown', stopPointer, true);
+  shopBtn?.addEventListener('click', () => {
+    if (!active) return;
+    markShown();
+    hide();
+    vibrate(CONFIG.ui?.hapticUpgradeHintOpen ?? [16, 14, 22]);
+  });
 
   return {
     tryShow,

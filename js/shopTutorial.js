@@ -4,11 +4,15 @@ function tutorialSteps() {
   return (
     CONFIG.shop?.tutorial?.steps ?? [
       {
-        text: 'Глянь, бро! Тут можно затюнить наш домик или прокачать мои объёмы 💪',
+        text: 'Слева «Прокачка» — тут поднимаешь потолок статов.',
+        tab: 'upgrade',
+        targetSelector: '#shop-tab-upgrade',
         button: 'Дальше',
       },
       {
-        text: 'Дома — это вайб локации. А прокачка — потолок моих статов!',
+        text: '«Дома» — это вайб и фон. Для силы сначала качай статы.',
+        tab: 'houses',
+        targetSelector: '#shop-tab-houses',
         button: 'Понял',
       },
     ]
@@ -24,6 +28,26 @@ export function createShopTutorial({
   let active = false;
   let stepIndex = 0;
   let resolveWait = null;
+  let highlightedEl = null;
+
+  function clearHighlight() {
+    if (highlightedEl) {
+      highlightedEl.classList.remove('shop-tutorial__target');
+      highlightedEl = null;
+    }
+  }
+
+  function findStepTarget(step) {
+    const selector = step?.targetSelector;
+    if (!selector) return null;
+    return document.querySelector(selector);
+  }
+
+  function activateStepTab(step) {
+    if (!step?.tab) return;
+    const tabBtn = document.querySelector(`[data-shop-tab="${step.tab}"]`);
+    tabBtn?.click?.();
+  }
 
   function layoutCard() {
     if (!card || !root) return;
@@ -42,6 +66,10 @@ export function createShopTutorial({
     const steps = tutorialSteps();
     const step = steps[stepIndex];
     if (!step) return;
+    clearHighlight();
+    activateStepTab(step);
+    highlightedEl = findStepTarget(step);
+    highlightedEl?.classList.add('shop-tutorial__target');
     if (textEl) textEl.textContent = step.text ?? '';
     if (nextBtn) nextBtn.textContent = step.button ?? 'Дальше';
   }
@@ -52,6 +80,7 @@ export function createShopTutorial({
     root?.setAttribute('hidden', '');
     root?.setAttribute('aria-hidden', 'true');
     root?.classList.remove('is-active');
+    clearHighlight();
     if (card) {
       card.classList.remove('tutorial-card--center');
       card.style.left = '';

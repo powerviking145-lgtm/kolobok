@@ -113,11 +113,21 @@ export const CONFIG = {
     tutorial: {
       steps: [
         {
-          text: 'Глянь, бро! Тут можно затюнить наш домик или прокачать мои объёмы 💪',
+          text: 'Слева вкладка «Прокачка» — здесь ты тратишь ⭐ и поднимаешь потолок моих статов.',
+          tab: 'upgrade',
+          targetSelector: '#shop-tab-upgrade',
           button: 'Дальше',
         },
         {
-          text: 'Дома — это вайб локации. А прокачка — потолок моих статов!',
+          text: 'А вот «Дома» — чисто вайб и визуал. Переключай, чтобы менять локацию.',
+          tab: 'houses',
+          targetSelector: '#shop-tab-houses',
+          button: 'Дальше',
+        },
+        {
+          text: 'Сначала вкинь очки в «Прокачка», потом уже кайфуй с домами.',
+          tab: 'upgrade',
+          targetSelector: '#shop-panel-upgrade .shop-upgrade-card__btn',
           button: 'Понял',
         },
       ],
@@ -864,6 +874,8 @@ export const CONFIG = {
     speechHideIdleMs: 6000,
     hapticTapMs: 10,
     hapticAchievement: [50, 30, 50],
+    hapticUpgradeHintShow: [12, 18],
+    hapticUpgradeHintOpen: [16, 14, 22],
     tapMoodBonus: 1,
     statLowPercent: 30,
     receiptBlockedPhrases: [

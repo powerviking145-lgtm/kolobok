@@ -298,7 +298,7 @@ export function initShop({
       : [...screen.querySelectorAll('.shop-screen__panel')];
 
   let isOpen = false;
-  let activeTab = 'houses';
+  let activeTab = 'upgrade';
   let holdTimerId = null;
   let holdIntervalId = null;
   let holdStatKey = null;
