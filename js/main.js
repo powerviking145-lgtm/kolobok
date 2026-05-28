@@ -72,6 +72,14 @@ const ui = {
   btnRun: null,
   footer: null,
   homeToast: null,
+  dailyChip: null,
+  dailyChipText: null,
+  dailyChipFill: null,
+  dailySheet: null,
+  dailySheetList: null,
+  dailySheetHint: null,
+  dailySheetRewardText: null,
+  dailySheetClaim: null,
 };
 
 let currentMood = 'normal';
@@ -102,6 +110,7 @@ let disposeParticles = null;
 let criticalWarnTimerId = null;
 let lastCriticalWarnAt = 0;
 let deathFlowActive = false;
+let tutorialAutoFeedUsed = false;
 const TAP_EMOJIS = ['😄', '😋', '🥰', '😎', '❤️'];
 const homeVideo = {
   active: null,
@@ -359,6 +368,7 @@ async function rebakeKolobokAfterDeath() {
     await runOnboardingIfNeeded();
 
     if (!isTutorialCompleted()) {
+      prepareFirstTutorialNeeds();
       pauseGameTimers();
       homeSpawns?.stop();
       tutorial?.start();
@@ -560,6 +570,90 @@ function showHomeToast(text) {
     el.setAttribute('hidden', '');
     homeToastTimerId = null;
   }, hideMs);
+}
+
+function renderDailyMissionsUi() {
+  const dm = gameState.getDailyMissions?.();
+  if (!dm || !ui.dailyChip) return;
+  const cfg = CONFIG.dailyMissions ?? {};
+  const difficultyText = (difficulty) => {
+    if (difficulty === 'easy') return 'Легко';
+    if (difficulty === 'hard') return 'Сложно';
+    return 'Средне';
+  };
+  const doneText = `${dm.doneCount}/${dm.totalCount}`;
+  const pct = dm.totalCount > 0 ? Math.round((dm.doneCount / dm.totalCount) * 100) : 0;
+
+  ui.dailyChipText.textContent = dm.claimed
+    ? `✅ ${cfg.chipDone ?? 'На сегодня всё'}`
+    : `🎯 ${cfg.chipTitle ?? 'Дейлики'} ${doneText}`;
+  ui.dailyChipFill.style.width = `${pct}%`;
+  ui.dailyChip.classList.toggle('daily-chip--done', dm.allDone && !dm.claimed);
+
+  if (!ui.dailySheetList) return;
+  ui.dailySheetHint.textContent = cfg.resetHint ?? 'Обновление в 00:00';
+  ui.dailySheetList.innerHTML = dm.items
+    .map((it) => {
+      const p = it.target > 0 ? Math.round((it.progress / it.target) * 100) : 0;
+      return `
+        <li class="daily-sheet__item">
+          <div class="daily-sheet__item-top">
+            <span class="daily-sheet__item-label">${it.label}</span>
+            <span class="daily-sheet__item-right">
+              <span class="daily-sheet__item-difficulty daily-sheet__item-difficulty--${it.difficulty ?? 'medium'}">${difficultyText(it.difficulty)}</span>
+              <span class="daily-sheet__item-progress">${Math.min(it.progress, it.target)}/${it.target}</span>
+            </span>
+          </div>
+          <div class="daily-sheet__item-bar" aria-hidden="true"><span style="width:${p}%"></span></div>
+        </li>
+      `;
+    })
+    .join('');
+  ui.dailySheetRewardText.textContent = `Награда: ⭐ ${dm.reward ?? 0}`;
+  ui.dailySheetClaim.textContent = dm.claimed
+    ? (cfg.claimedLabel ?? 'Награда получена')
+    : (cfg.claimLabel ?? 'Забрать награду');
+  ui.dailySheetClaim.disabled = !dm.allDone || dm.claimed;
+}
+
+function openDailySheet() {
+  if (!ui.dailySheet) return;
+  ui.dailySheet.removeAttribute('hidden');
+  ui.dailySheet.setAttribute('aria-hidden', 'false');
+  ui.dailySheet.classList.add('is-open');
+  renderDailyMissionsUi();
+}
+
+function closeDailySheet() {
+  if (!ui.dailySheet) return;
+  ui.dailySheet.classList.remove('is-open');
+  ui.dailySheet.setAttribute('hidden', '');
+  ui.dailySheet.setAttribute('aria-hidden', 'true');
+}
+
+function initDailyMissionsUi() {
+  if (!ui.dailyChip || !ui.dailySheet) return;
+  if (CONFIG.dailyMissions?.enabled === false) {
+    ui.dailyChip.setAttribute('hidden', '');
+    ui.dailySheet.setAttribute('hidden', '');
+    return;
+  }
+  ui.dailyChip.addEventListener('click', () => {
+    vibrateTap();
+    openDailySheet();
+  });
+  document.getElementById('daily-sheet-backdrop')?.addEventListener('click', closeDailySheet);
+  document.getElementById('daily-sheet-close')?.addEventListener('click', closeDailySheet);
+  ui.dailySheetClaim?.addEventListener('click', () => {
+    const reward = gameState.claimDailyMissionsReward?.() ?? 0;
+    if (reward > 0) {
+      vibrateTap();
+      showHomeToast(`Дейлики закрыты! +${reward}⭐`);
+      updateScoreHub(true);
+    }
+    renderDailyMissionsUi();
+  });
+  renderDailyMissionsUi();
 }
 
 function formatAbsenceTime(ms) {
@@ -794,6 +888,7 @@ function renderUI(animatePhrase = false) {
   updateBurnRunUI(stats);
   updateShopButton();
   updateDeathState(stats);
+  renderDailyMissionsUi();
 
   if (!currentPhrase) {
     refreshPhrase(false);
@@ -815,6 +910,7 @@ function onStateChanged() {
   updateBurnRunUI(stats);
   updateShopButton();
   updateDeathState(stats);
+  renderDailyMissionsUi();
 
   if (moodChanged && !burnRunActive) {
     refreshPhrase(true);
@@ -1501,6 +1597,7 @@ function handleFoodCollect({
       vibrate(pickFoodHaptic(sliced ? 'sliceBad' : 'collectBad'));
     }
     gameState.recordFoodInteraction();
+    if (sliced) gameState.incrementDailyMission?.('swipe_count', 1);
     homeSpawns?.trySpawnToMax?.(true);
     homeSpawns?.ensureSpawnLoop?.();
     if (tutorial?.isActive()) {
@@ -1546,6 +1643,7 @@ function handleFoodCollect({
   });
 
   gameState.recordFoodInteraction();
+  if (sliced) gameState.incrementDailyMission?.('swipe_count', 1);
   homeSpawns?.trySpawnToMax?.(true);
   homeSpawns?.ensureSpawnLoop?.();
 
@@ -1593,6 +1691,7 @@ function performStageTap(clientX, clientY) {
   }
 
   vibrateTap();
+  gameState.incrementDailyMission?.('tap_count', 1);
   ui.kolobok?.classList.add('is-tap-smile');
   window.setTimeout(() => ui.kolobok?.classList.remove('is-tap-smile'), 400);
   const emoji = TAP_EMOJIS[Math.floor(Math.random() * TAP_EMOJIS.length)];
@@ -1740,6 +1839,14 @@ function cacheElements() {
   ui.btnRun = document.getElementById('btn-run');
   ui.footer = document.getElementById('footer-buttons');
   ui.homeToast = document.getElementById('home-toast');
+  ui.dailyChip = document.getElementById('daily-chip');
+  ui.dailyChipText = document.getElementById('daily-chip-text');
+  ui.dailyChipFill = document.getElementById('daily-chip-fill');
+  ui.dailySheet = document.getElementById('daily-sheet');
+  ui.dailySheetList = document.getElementById('daily-sheet-list');
+  ui.dailySheetHint = document.getElementById('daily-sheet-hint');
+  ui.dailySheetRewardText = document.getElementById('daily-sheet-reward-text');
+  ui.dailySheetClaim = document.getElementById('daily-sheet-claim');
   ui.homeParticles = document.getElementById('home-particles');
   setActionButtonLabels();
   const btnUnpack = document.getElementById('btn-unpack');
@@ -1785,6 +1892,7 @@ function initRunner() {
         replySystem?.hideAll();
       },
       onEnd: (result) => {
+        gameState.incrementDailyMission?.('runner_run', 1);
         gameState.updateBestDistance(result.distance);
         gameState.updateBestScore(result.score);
         gameState.addRunScore(result.score);
@@ -1855,6 +1963,13 @@ function initFoodPhotoFeed() {
         gameState.save();
         resumeHomeAfterFeed([]);
         resumeHomeVideo();
+        tutorial?.onPhotoFeedCompleted?.();
+        if (tutorial?.isActive?.()) {
+          const marked = gameState.markTutorialFirstFeedComplete?.();
+          if (marked) {
+            console.log('metric:tutorial_to_first_feed_complete');
+          }
+        }
         refreshPhrase(true);
         positionSpeechBubble({
           bubble: document.getElementById('idle-chat-bubble'),
@@ -1871,6 +1986,28 @@ function initFoodPhotoFeed() {
       },
     },
   });
+}
+
+function prepareFirstTutorialNeeds() {
+  const target = CONFIG.tutorial?.firstNeedsPercent ?? 24;
+  const onceKey = 'tutorial-first-needs-applied';
+  try {
+    if (sessionStorage.getItem(onceKey) === '1') return;
+  } catch {
+    /* ignore */
+  }
+  const curHunger = gameState.getStatDisplayPercent('hunger');
+  const curThirst = gameState.getStatDisplayPercent('thirst');
+  const maxHunger = gameState.getStatMax('hunger');
+  const maxThirst = gameState.getStatMax('thirst');
+  if (curHunger > target) gameState.setStat('hunger', Math.round((target / 100) * maxHunger));
+  if (curThirst > target) gameState.setStat('thirst', Math.round((target / 100) * maxThirst));
+  gameState.syncDerivedFromPrimary({ immediate: true });
+  try {
+    sessionStorage.setItem(onceKey, '1');
+  } catch {
+    /* ignore */
+  }
 }
 
 function initPurchase() {
@@ -2138,6 +2275,7 @@ export async function launchGame() {
       speechDock: document.getElementById('idle-chat-dock'),
       replySystem,
       onStart: () => {
+        tutorialAutoFeedUsed = false;
         resumeHomeVideo();
       },
       onComplete: () => {
@@ -2149,6 +2287,22 @@ export async function launchGame() {
         currentPhrase = '';
         refreshPhrase(false);
         tryShowShopUpgradeHint();
+      },
+      onRequestPhotoFeed: (step) => {
+        if (step?.id === 'feed_source') {
+          if (!foodPhotoFeed?.isActive?.()) {
+            foodPhotoFeed?.open?.();
+          }
+          return;
+        }
+        if (step?.id === 'feed_wait') {
+          if (tutorialAutoFeedUsed) return;
+          tutorialAutoFeedUsed = true;
+          foodPhotoFeed?.openTutorialPreset?.({
+            foodId: 'water',
+            customComment: 'Я уже нашел тебе воду, но только на этот раз. Дальше фоткаешь сам, хозяин.',
+          });
+        }
       },
       onSpawnTutorialFood: () => homeSpawns?.spawnTutorialFood(),
       onFoodTapped: () => {},
@@ -2214,6 +2368,7 @@ export async function launchGame() {
     initFoodPhotoFeed();
     initPurchase();
     initRunner();
+    initDailyMissionsUi();
 
     disposeParticles = initHomeParticles(ui.homeParticles);
 

@@ -116,6 +116,154 @@ function defaultFeedLog() {
   };
 }
 
+function defaultTutorialMetrics() {
+  return {
+    tutorialToFirstFeedCompleteAt: null,
+  };
+}
+
+function defaultDailyMissions(day = todayKey()) {
+  return {
+    dayKey: day,
+    items: [],
+    reward: Math.max(0, Math.floor(CONFIG.dailyMissions?.rewardStars ?? 120)),
+    claimed: false,
+  };
+}
+
+function seededShuffle(list, seedStr) {
+  const arr = list.slice();
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i += 1) {
+    seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  const rand = () => {
+    seed = (1664525 * seed + 1013904223) >>> 0;
+    return seed / 0x100000000;
+  };
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function normalizeDailyMissions(raw) {
+  const cfg = CONFIG.dailyMissions ?? {};
+  const day = todayKey();
+  const def = defaultDailyMissions(day);
+  const src = raw && typeof raw === 'object' ? raw : {};
+
+  const pickCount = Math.max(1, Math.floor(cfg.countPerDay ?? 3));
+  const pool = Array.isArray(cfg.pool) ? cfg.pool : [];
+  const rewardsByDifficulty = cfg.rewardsByDifficulty ?? {};
+  const missionReward = (difficulty) => {
+    const key = String(difficulty ?? 'medium');
+    const mapped = Number(rewardsByDifficulty[key]);
+    if (Number.isFinite(mapped) && mapped > 0) return Math.floor(mapped);
+    return 0;
+  };
+  const calcReward = (items) => {
+    const sum = items.reduce((acc, it) => acc + missionReward(it.difficulty), 0);
+    if (sum > 0) return sum;
+    return Math.max(0, Math.floor(cfg.rewardStars ?? def.reward));
+  };
+  const missionBucket = (m) => {
+    if (m?.bucket) return String(m.bucket);
+    const t = String(m?.type ?? '');
+    if (t.startsWith('feed_')) return 'feed';
+    if (t === 'runner_run' || t === 'tap_count' || t === 'swipe_count') return 'action';
+    if (t === 'score_gain') return 'score';
+    return 'other';
+  };
+  const toMission = (m) => ({
+    id: String(m.id ?? `${m.type}-${m.target}`),
+    type: String(m.type ?? 'feed_any'),
+    difficulty: String(m.difficulty ?? 'medium'),
+    label: String(m.label ?? 'Задание'),
+    target: Math.max(1, Math.floor(m.target ?? 1)),
+    progress: 0,
+    done: false,
+  });
+  const buildItems = (seedDay, avoidIds = new Set()) => {
+    const shuffled = seededShuffle(pool, seedDay);
+    const byBucket = new Map();
+    shuffled.forEach((m) => {
+      const bucket = missionBucket(m);
+      if (!byBucket.has(bucket)) byBucket.set(bucket, []);
+      byBucket.get(bucket).push(m);
+    });
+
+    const preferredOrder = ['feed', 'action', 'score'];
+    const picked = [];
+    const pickFromBucket = (arr) => {
+      if (!arr?.length) return null;
+      const idx = arr.findIndex((m) => !avoidIds.has(String(m.id ?? '')));
+      if (idx >= 0) return arr.splice(idx, 1)[0];
+      return arr.shift();
+    };
+    preferredOrder.forEach((bucket) => {
+      const arr = byBucket.get(bucket);
+      if (arr?.length && picked.length < pickCount) {
+        const mission = pickFromBucket(arr);
+        if (mission) picked.push(mission);
+      }
+    });
+
+    const rest = seededShuffle(
+      shuffled.filter((m) => !picked.includes(m)),
+      `${seedDay}-rest`
+    );
+    rest.sort((a, b) => {
+      const aAvoid = avoidIds.has(String(a.id ?? '')) ? 1 : 0;
+      const bAvoid = avoidIds.has(String(b.id ?? '')) ? 1 : 0;
+      return aAvoid - bAvoid;
+    });
+    for (let i = 0; i < rest.length && picked.length < pickCount; i += 1) {
+      picked.push(rest[i]);
+    }
+
+    return picked.map(toMission);
+  };
+
+  const baseItems = Array.isArray(src.items) ? src.items : [];
+  const sameDay = src.dayKey === day;
+  const previousIds = new Set(
+    !sameDay && Array.isArray(src.items)
+      ? src.items.map((it) => String(it?.id ?? '')).filter(Boolean)
+      : []
+  );
+
+  const items = sameDay
+    ? baseItems.map((it) => {
+        const target = Math.max(1, Math.floor(it.target ?? 1));
+        const progress = Math.max(0, Math.floor(it.progress ?? 0));
+        return {
+          id: String(it.id ?? `${it.type}-${target}`),
+          type: String(it.type ?? 'feed_any'),
+          difficulty: String(it.difficulty ?? 'medium'),
+          label: String(it.label ?? 'Задание'),
+          target,
+          progress: Math.min(target, progress),
+          done: progress >= target || !!it.done,
+        };
+      })
+    : buildItems(day, previousIds);
+
+  if (!items.length) {
+    return { ...def, items: buildItems(day, previousIds) };
+  }
+
+  return {
+    dayKey: day,
+    items,
+    reward: sameDay
+      ? Math.max(0, Math.floor(src.reward ?? calcReward(items)))
+      : calcReward(items),
+    claimed: sameDay ? !!src.claimed : false,
+  };
+}
+
 function dayKeyShift(daysAgo = 0) {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -278,6 +426,8 @@ export function normalizeState(raw = {}) {
     foodInteractCount: 0,
     feedLog: defaultFeedLog(),
     feedHistory: [],
+    dailyMissions: defaultDailyMissions(),
+    tutorialMetrics: defaultTutorialMetrics(),
     cloud: {
       telegramId: null,
       telegramUsername: null,
@@ -330,6 +480,11 @@ export function normalizeState(raw = {}) {
   }
   merged.feedLog = normalizeFeedLog(raw.feedLog);
   merged.feedHistory = normalizeFeedHistory(raw.feedHistory);
+  merged.dailyMissions = normalizeDailyMissions(raw.dailyMissions);
+  merged.tutorialMetrics = {
+    ...defaultTutorialMetrics(),
+    ...(raw.tutorialMetrics && typeof raw.tutorialMetrics === 'object' ? raw.tutorialMetrics : {}),
+  };
 
   return merged;
 }
@@ -359,6 +514,11 @@ function flattenForUi(src = state) {
     foodInteractCount: src.foodInteractCount ?? 0,
     feedLog: normalizeFeedLog(src.feedLog),
     feedHistory: normalizeFeedHistory(src.feedHistory),
+    dailyMissions: normalizeDailyMissions(src.dailyMissions),
+    tutorialMetrics:
+      src.tutorialMetrics && typeof src.tutorialMetrics === 'object'
+        ? { ...defaultTutorialMetrics(), ...src.tutorialMetrics }
+        : defaultTutorialMetrics(),
   };
 
   STAT_KEYS.forEach((key) => {
@@ -574,6 +734,23 @@ function isStatKey(key) {
   return STAT_KEYS.includes(key);
 }
 
+function ensureDailyMissions() {
+  state.dailyMissions = normalizeDailyMissions(state.dailyMissions);
+}
+
+function progressDailyMission(type, delta = 1) {
+  ensureDailyMissions();
+  if (!type || delta <= 0) return false;
+  let changed = false;
+  state.dailyMissions.items.forEach((item) => {
+    if (item.type !== type || item.done) return;
+    item.progress = Math.min(item.target, item.progress + Math.floor(delta));
+    if (item.progress >= item.target) item.done = true;
+    changed = true;
+  });
+  return changed;
+}
+
 export const gameState = {
   get() {
     return flattenForUi(state);
@@ -600,6 +777,40 @@ export const gameState = {
       isWatered: (state.feedLog.drinkToday ?? 0) > 0,
       isFullyServed: (state.feedLog.foodToday ?? 0) > 0 && (state.feedLog.drinkToday ?? 0) > 0,
     };
+  },
+
+  getDailyMissions() {
+    ensureDailyMissions();
+    const dm = state.dailyMissions;
+    const doneCount = dm.items.filter((it) => it.done).length;
+    return {
+      ...dm,
+      items: dm.items.map((it) => ({ ...it })),
+      doneCount,
+      totalCount: dm.items.length,
+      allDone: dm.items.length > 0 && doneCount === dm.items.length,
+    };
+  },
+
+  incrementDailyMission(type, amount = 1) {
+    const changed = progressDailyMission(type, amount);
+    if (changed) emitChange();
+    return changed;
+  },
+
+  claimDailyMissionsReward() {
+    ensureDailyMissions();
+    const dm = state.dailyMissions;
+    const allDone = dm.items.length > 0 && dm.items.every((it) => it.done);
+    if (!allDone || dm.claimed) return 0;
+    const reward = Math.max(0, Math.floor(dm.reward ?? 0));
+    dm.claimed = true;
+    if (reward > 0) {
+      state.stars = Math.max(0, (state.stars ?? 0) + reward);
+      state.tapScore = Math.max(0, (state.tapScore ?? 0) + reward);
+    }
+    emitChange();
+    return reward;
   },
 
   getNutritionPattern(days = 7) {
@@ -817,6 +1028,7 @@ export const gameState = {
     if (!a) return;
     state.tapScore = Math.max(0, (state.tapScore ?? 0) + a);
     state.stars = Math.max(0, (state.stars ?? 0) + a);
+    progressDailyMission('score_gain', a);
     emitChange();
   },
 
@@ -865,6 +1077,7 @@ export const gameState = {
     const a = Math.floor(amount);
     state.runScore = (state.runScore ?? 0) + a;
     state.stars = Math.max(0, (state.stars ?? 0) + a);
+    progressDailyMission('score_gain', a);
     emitChange();
   },
 
@@ -956,6 +1169,25 @@ export const gameState = {
     emitChange();
   },
 
+  getTutorialMetrics() {
+    return {
+      ...defaultTutorialMetrics(),
+      ...(state.tutorialMetrics && typeof state.tutorialMetrics === 'object'
+        ? state.tutorialMetrics
+        : {}),
+    };
+  },
+
+  markTutorialFirstFeedComplete() {
+    if (!state.tutorialMetrics || typeof state.tutorialMetrics !== 'object') {
+      state.tutorialMetrics = defaultTutorialMetrics();
+    }
+    if (state.tutorialMetrics.tutorialToFirstFeedCompleteAt) return false;
+    state.tutorialMetrics.tutorialToFirstFeedCompleteAt = Date.now();
+    emitChange();
+    return true;
+  },
+
   getKolobokName() {
     const n = state.kolobokName;
     return n && String(n).trim() ? String(n).trim() : null;
@@ -984,6 +1216,7 @@ export const gameState = {
       houses: cloud.houses ?? raw.houses,
       bestDistance: Math.max(raw.bestDistance ?? 0, cloud.bestDistance ?? 0),
       bestScore: Math.max(raw.bestScore ?? 0, cloud.bestScore ?? 0),
+      tutorialMetrics: cloud.tutorialMetrics ?? raw.tutorialMetrics,
       kolobokName: cloud.kolobokName ?? raw.kolobokName,
       pvpWins: cloud.pvpWins ?? raw.pvpWins,
       pvpLosses: cloud.pvpLosses ?? raw.pvpLosses,
@@ -1012,6 +1245,7 @@ export const gameState = {
       pvpLosses: raw.pvpLosses ?? 0,
       bestDistance: raw.bestDistance ?? 0,
       bestScore: raw.bestScore ?? 0,
+      tutorialMetrics: raw.tutorialMetrics ?? defaultTutorialMetrics(),
       saveVersion: CONFIG.saveVersion,
     };
   },

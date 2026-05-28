@@ -29,6 +29,7 @@ export function createTutorialController({
   onStart,
   onFoodTapped,
   onSpawnTutorialFood,
+  onRequestPhotoFeed,
 }) {
   const steps = CONFIG.tutorial.steps;
   let currentStep = 0;
@@ -466,21 +467,36 @@ export function createTutorialController({
     hideDemoSpeech();
 
     const waitTap = step.action === 'wait_for_tap';
+    const waitPhotoFeed = step.action === 'wait_for_photo_feed';
     if (nextBtn) {
-      nextBtn.hidden = waitTap;
-      nextBtn.style.display = waitTap ? 'none' : '';
+      nextBtn.hidden = waitTap || waitPhotoFeed;
+      nextBtn.style.display = waitTap || waitPhotoFeed ? 'none' : '';
       nextBtn.textContent = step.buttonText || 'Дальше';
     }
 
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => layoutStepSpotlight(step));
     });
+
+    if (step.action === 'open_photo_modal') {
+      window.setTimeout(() => onRequestPhotoFeed?.(step), 120);
+    }
+
+    if (waitPhotoFeed) {
+      window.setTimeout(() => onRequestPhotoFeed?.(step), 120);
+    }
   }
 
   function onFoodCollected() {
     const step = steps[currentStep];
     if (!active || step?.action !== 'wait_for_tap') return;
     onFoodTapped?.();
+    window.setTimeout(() => goNext(), 450);
+  }
+
+  function onPhotoFeedCompleted() {
+    const step = steps[currentStep];
+    if (!active || step?.action !== 'wait_for_photo_feed') return;
     window.setTimeout(() => goNext(), 450);
   }
 
@@ -532,6 +548,7 @@ export function createTutorialController({
     start,
     isActive: () => active,
     onFoodCollected,
+    onPhotoFeedCompleted,
     skip: finish,
   };
 }

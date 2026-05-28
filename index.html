@@ -207,6 +207,8 @@
 
               <span class="social-banner__text"><strong class="social-banner__count" id="life-banner-count">0 ч</strong> живу в печке</span>
 
+              <span class="social-banner__go social-banner__go--life" aria-hidden="true"></span>
+
             </span>
 
           </div>
@@ -626,6 +628,12 @@
 
         </article>
 
+        <button type="button" class="daily-chip" id="daily-chip" aria-label="Открыть задания дня">
+          <span class="daily-chip__icon" aria-hidden="true">🎯</span>
+          <span class="daily-chip__text" id="daily-chip-text">Дейлики 0/3</span>
+          <span class="daily-chip__bar" aria-hidden="true"><span id="daily-chip-fill"></span></span>
+        </button>
+
         <footer class="zone zone--buttons actions" id="footer-buttons">
 
           <div class="footer-buttons__row" id="footer-buttons-row">
@@ -724,6 +732,20 @@
 
         </div>
 
+      </div>
+
+      <div class="daily-sheet" id="daily-sheet" hidden aria-hidden="true">
+        <div class="daily-sheet__backdrop" id="daily-sheet-backdrop"></div>
+        <div class="daily-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="daily-sheet-title">
+          <button type="button" class="daily-sheet__close" id="daily-sheet-close" aria-label="Закрыть">✕</button>
+          <h2 class="daily-sheet__title" id="daily-sheet-title">Задания дня</h2>
+          <p class="daily-sheet__hint" id="daily-sheet-hint">Обновление в 00:00</p>
+          <ul class="daily-sheet__list" id="daily-sheet-list"></ul>
+          <div class="daily-sheet__reward">
+            <p class="daily-sheet__reward-text" id="daily-sheet-reward-text">Награда: ⭐ 0</p>
+            <button type="button" class="btn btn--primary daily-sheet__claim" id="daily-sheet-claim">Забрать награду</button>
+          </div>
+        </div>
       </div>
 
       <div id="shop-screen" class="shop-screen" hidden aria-hidden="true">
@@ -1053,7 +1075,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '164';
+      var BUILD = '165';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

@@ -12,6 +12,11 @@ function getFoodList() {
   return CONFIG.homeFoods?.list ?? [];
 }
 
+function getFoodById(foodId) {
+  if (!foodId) return null;
+  return getFoodList().find((f) => f.id === foodId) ?? null;
+}
+
 function shuffle(list) {
   const arr = list.slice();
   for (let i = arr.length - 1; i > 0; i -= 1) {
@@ -146,6 +151,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   const resultName = document.getElementById('food-photo-result-name');
   const resultPhrase = document.getElementById('food-photo-result-phrase');
   const resultCoach = document.getElementById('food-photo-result-coach');
+  const confirmHint = document.getElementById('food-photo-confirm-hint');
   const errorText = document.getElementById('food-photo-error-text');
 
   let active = false;
@@ -264,6 +270,8 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     if (pts) gameState.addTapScore(pts);
     gameState.recordPhotoFeed?.(food);
     gameState.recordFoodInteraction?.();
+    gameState.incrementDailyMission?.('feed_any', 1);
+    gameState.incrementDailyMission?.(drink ? 'feed_drink' : 'feed_food', 1);
 
     gameState.save();
     const highlightKeys = Object.entries(boosts)
@@ -331,13 +339,17 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       : `🧠 Факт: ${fact}\n💡 ${adviceLine}`;
   }
 
-  function showResult(food, { customComment } = {}) {
+  function showResult(food, { customComment, tutorialBonus = false } = {}) {
     const phrase =
       customComment?.trim() || getFoodPhotoFeedPhrase(food);
     if (resultEmoji) resultEmoji.textContent = food.emoji;
     if (resultName) resultName.textContent = food.name;
     if (resultPhrase) resultPhrase.textContent = phrase;
-    if (resultCoach) resultCoach.textContent = getNutritionCoachLine(food);
+    if (resultCoach) {
+      const coachLine = getNutritionCoachLine(food);
+      const badge = tutorialBonus ? (CONFIG.tutorial?.tutorialBonusBadge ?? '') : '';
+      resultCoach.textContent = badge ? `${badge}\n${coachLine}` : coachLine;
+    }
     callbacks.onPhrase?.(phrase);
     showState('result');
     pendingFood = food;
@@ -373,6 +385,10 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     }
 
     const options = buildPickOptions(result.food);
+    if (confirmHint) {
+      confirmHint.textContent =
+        cfg().confirmLowConfidenceHint ?? cfg().pickHint ?? 'Колобок не уверен, выбери вариант ниже.';
+    }
     renderChoices(options, (picked) => {
       showResult(picked, {
         customComment: picked.id === result.food.id ? result.comment : '',
@@ -402,6 +418,24 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       return;
     }
     showState('pick');
+    if (confirmHint && cfg().pickHint) {
+      confirmHint.textContent = cfg().pickHint;
+    }
+  }
+
+  function openTutorialPreset({
+    foodId = 'water',
+    customComment = 'Я уже нашел тебе воду на первый раз. Но дальше фоткаешь сам, бро.',
+  } = {}) {
+    if (active) return;
+    setOpen(true);
+    const fallback = getFoodList().find((f) => isDrinkFood(f)) ?? getFoodList()[0] ?? null;
+    const food = getFoodById(foodId) ?? fallback;
+    if (!food) {
+      showError('Нет еды в конфиге для туториала');
+      return;
+    }
+    showResult(food, { customComment, tutorialBonus: true });
   }
 
   function bind() {
@@ -455,6 +489,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
 
   return {
     open,
+    openTutorialPreset,
     close,
     isActive: isOpen,
   };
