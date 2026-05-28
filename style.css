@@ -5721,6 +5721,20 @@ html.is-tutorial-active .stage-hero.tutorial-highlight {
   z-index: 901 !important;
 }
 
+html.is-tutorial-active #food-photo-done.tutorial-highlight,
+html.is-tutorial-active #food-photo-choices.tutorial-highlight,
+html.is-tutorial-active .food-photo-choices.tutorial-highlight {
+  z-index: 902 !important;
+}
+
+html.is-tutorial-active.is-food-photo-active .food-photo-modal.is-open {
+  z-index: 899;
+}
+
+html.is-tutorial-active.is-food-photo-active .tutorial-overlay {
+  z-index: 900;
+}
+
 .tutorial-overlay[hidden] {
   display: none !important;
   visibility: hidden;

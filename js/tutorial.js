@@ -281,6 +281,45 @@ export function createTutorialController({
     spotlightTarget = target;
   }
 
+  function layoutFeedDoneSpotlight(step, attempt = 0) {
+    const dim =
+      step.dim === 'light'
+        ? CONFIG.tutorial.dimLight || 'rgba(0,0,0,0.45)'
+        : CONFIG.tutorial.dimStrong || 'rgba(0,0,0,0.75)';
+    const btn = document.getElementById('food-photo-done');
+    if (!btn || btn.hidden || !btn.offsetParent) {
+      if (attempt < 30) {
+        window.setTimeout(() => layoutFeedDoneSpotlight(step, attempt + 1), 50);
+      }
+      return;
+    }
+    const pad = step.spotlightPad ?? CONFIG.tutorial.spotlightPad ?? 10;
+    const rect = btn.getBoundingClientRect();
+    applySpotlightRect(rect, dim, btn);
+    spotlightTarget = btn;
+    positionCard(step);
+  }
+
+  function layoutConfirmChoicesSpotlight(step, attempt = 0) {
+    const dim =
+      step.dim === 'light'
+        ? CONFIG.tutorial.dimLight || 'rgba(0,0,0,0.45)'
+        : CONFIG.tutorial.dimStrong || 'rgba(0,0,0,0.75)';
+    const choices =
+      document.getElementById('food-photo-choices') ||
+      document.querySelector('.food-photo-choices');
+    if (!choices || !choices.offsetParent) {
+      if (attempt < 30) {
+        window.setTimeout(() => layoutConfirmChoicesSpotlight(step, attempt + 1), 50);
+      }
+      return;
+    }
+    const rect = choices.getBoundingClientRect();
+    applySpotlightRect(rect, dim, choices);
+    spotlightTarget = choices;
+    positionCard(step);
+  }
+
   function layoutStepSpotlight(step) {
     const dim =
       step.dim === 'light'
@@ -298,6 +337,16 @@ export function createTutorialController({
       applySpotlight(null, dim);
       showDemoSpeech(step.demoSpeech);
       positionCard(step);
+      return;
+    }
+
+    if (step.action === 'show_confirm_demo') {
+      layoutConfirmChoicesSpotlight(step);
+      return;
+    }
+
+    if (step.action === 'wait_for_photo_feed' && step.targetSelector === '#food-photo-done') {
+      layoutFeedDoneSpotlight(step);
       return;
     }
 
@@ -322,6 +371,23 @@ export function createTutorialController({
     const b = overlayBounds();
     const pad = Math.max(12, Math.min(20, b.width * 0.04));
     let placement = step.cardPlacement || 'center';
+
+    if (step.id === 'feed_wait' || step.id === 'feed_manual_pick') {
+      placement = 'top';
+      const { w: cardW, h: cardH } = measureCardSize();
+      card.classList.remove(
+        'tutorial-card--center',
+        'tutorial-card--top',
+        'tutorial-card--bottom',
+        'tutorial-card--bottom-left',
+        'tutorial-card--side'
+      );
+      card.classList.add('tutorial-card--top');
+      card.style.left = '50%';
+      card.style.top = `${pad}px`;
+      card.style.transform = 'translate(-50%, 0)';
+      return;
+    }
 
     if (step.id === 'speech_example') {
       placement = 'bottom';
@@ -532,6 +598,7 @@ export function createTutorialController({
 
     const waitTap = step.action === 'wait_for_tap';
     const waitPhotoFeed = step.action === 'wait_for_photo_feed';
+    const confirmDemo = step.action === 'show_confirm_demo';
     if (nextBtn) {
       nextBtn.hidden = waitTap || waitPhotoFeed;
       nextBtn.style.display = waitTap || waitPhotoFeed ? 'none' : '';
@@ -539,15 +606,25 @@ export function createTutorialController({
     }
     scheduleStepSkip(step);
 
+    if (confirmDemo) {
+      window.setTimeout(() => onRequestPhotoFeed?.(step), 80);
+    }
+
+    if (waitPhotoFeed) {
+      window.setTimeout(() => {
+        onRequestPhotoFeed?.(step);
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => layoutStepSpotlight(step));
+        });
+      }, 120);
+      return;
+    }
+
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => layoutStepSpotlight(step));
     });
 
     if (step.action === 'open_photo_modal') {
-      window.setTimeout(() => onRequestPhotoFeed?.(step), 120);
-    }
-
-    if (waitPhotoFeed) {
       window.setTimeout(() => onRequestPhotoFeed?.(step), 120);
     }
   }

@@ -158,6 +158,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   let previewUrl = null;
   let pendingFeedBoost = null;
   let pendingFood = null;
+  let tutorialDemoMode = false;
 
   function isOpen() {
     return active && modal?.classList.contains('is-open');
@@ -220,6 +221,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       document.getElementById('footer-buttons')?.classList.remove('is-hidden');
       return;
     }
+    tutorialDemoMode = false;
     pendingFeedBoost = null;
     pendingFood = null;
     setOpen(false);
@@ -423,10 +425,39 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     }
   }
 
+  function showTutorialConfirmDemo() {
+    const answer =
+      getFoodById('fish') ??
+      getFoodById('water') ??
+      getFoodList().find((f) => f.kind === 'good') ??
+      getFoodList()[0];
+    if (!answer) {
+      showError('Нет еды в конфиге для туториала');
+      return;
+    }
+    tutorialDemoMode = true;
+    pendingFood = null;
+    pendingFeedBoost = null;
+    if (!active) setOpen(true);
+    if (previewImg) {
+      previewImg.src = 'assets/tutorial/food-fish-example.png';
+      previewImg.hidden = false;
+    }
+    if (confirmHint) {
+      confirmHint.textContent =
+        cfg().confirmLowConfidenceHint ??
+        cfg().pickHint ??
+        'Колобок почти уверен — поправь, если промахнулся.';
+    }
+    renderChoices(buildPickOptions(answer), () => {});
+    showState('confirm');
+  }
+
   function openTutorialPreset({
     foodId = 'water',
     customComment = 'Я уже нашел тебе воду на первый раз. Но дальше фоткаешь сам, бро.',
   } = {}) {
+    tutorialDemoMode = false;
     if (!active) setOpen(true);
     const fallback = getFoodList().find((f) => isDrinkFood(f)) ?? getFoodList()[0] ?? null;
     const food = getFoodById(foodId) ?? fallback;
@@ -455,6 +486,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     }
 
     btnDone?.addEventListener('click', () => {
+      if (tutorialDemoMode) return;
       vibrate(CONFIG.ui?.hapticFeedConfirm ?? [16, 18, 22]);
       if (pendingFood) {
         applyFeed(pendingFood);
@@ -489,6 +521,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   return {
     open,
     openTutorialPreset,
+    showTutorialConfirmDemo,
     close,
     isActive: isOpen,
   };

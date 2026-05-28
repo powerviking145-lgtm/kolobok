@@ -2294,15 +2294,17 @@ export async function launchGame() {
         tryShowShopUpgradeHint();
       },
       onRequestPhotoFeed: (step) => {
+        if (step?.action === 'show_confirm_demo' || step?.id === 'feed_manual_pick') {
+          foodPhotoFeed?.showTutorialConfirmDemo?.();
+          return;
+        }
         if (step?.id === 'feed_wait') {
           if (tutorialAutoFeedUsed) return;
           tutorialAutoFeedUsed = true;
-          if (foodPhotoFeed?.isActive?.()) {
-            foodPhotoFeed.close();
-          }
           foodPhotoFeed?.openTutorialPreset?.({
             foodId: 'water',
-            customComment: 'Я уже нашел тебе воду, но только на этот раз. Дальше фоткаешь сам, хозяин.',
+            customComment:
+              'Я уже нашел тебе воду на первый раз. Дальше фоткаешь сам, хозяин.',
           });
         }
       },
