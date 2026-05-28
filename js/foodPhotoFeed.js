@@ -2,6 +2,7 @@ import { CONFIG } from './config.js';
 import { gameState } from './state.js';
 import { getFoodPhotoFeedPhrase } from './phrases.js';
 import { isGeminiFoodPhotoReady, recognizeFoodWithGemini } from './foodPhotoGemini.js';
+import { vibrate } from './homeUi.js';
 
 function cfg() {
   return CONFIG.foodPhoto ?? {};
@@ -144,6 +145,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   const resultEmoji = document.getElementById('food-photo-result-emoji');
   const resultName = document.getElementById('food-photo-result-name');
   const resultPhrase = document.getElementById('food-photo-result-phrase');
+  const resultCoach = document.getElementById('food-photo-result-coach');
   const errorText = document.getElementById('food-photo-error-text');
 
   let active = false;
@@ -237,8 +239,6 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   }
 
   function applyFeed(food) {
-    const effects = getEffects(food);
-    const moodBonus = cfg().moodBonus ?? 2;
     const fillPct = cfg().fillPrimaryStatPercent ?? 80;
     const drink = isDrinkFood(food);
     const primaryKey = drink ? 'thirst' : 'hunger';
@@ -252,25 +252,75 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     const primaryGain = primaryAfter - before[primaryKey];
     if (primaryGain > 0) boosts[primaryKey] = primaryGain;
 
-    Object.entries(effects).forEach(([key, val]) => {
-      if (!val || key === 'hunger' || key === 'thirst') return;
-      before[key] = gameState.getStatDisplayPercent(key);
-      gameState.changeStat(key, val);
-      boosts[key] = val;
-    });
-
-    if (moodBonus) {
-      if (before.mood === undefined) before.mood = gameState.getStatDisplayPercent('mood');
-      gameState.changeStat('mood', moodBonus);
-      boosts.mood = (boosts.mood ?? 0) + moodBonus;
-    }
-
     const pts = cfg().tapScorePoints ?? 2;
     if (pts) gameState.addTapScore(pts);
     gameState.recordPhotoFeed?.(food);
     gameState.recordFoodInteraction?.();
+
     gameState.save();
-    pendingFeedBoost = { before, boosts, food };
+    const highlightKeys = Object.entries(boosts)
+      .filter(([, val]) => Number(val) > 0)
+      .map(([key]) => key);
+    pendingFeedBoost = { before, boosts, food, highlightKeys };
+  }
+
+  function pickOne(list) {
+    if (!Array.isArray(list) || !list.length) return '';
+    return list[Math.floor(Math.random() * list.length)] ?? '';
+  }
+
+  function getNutritionCoachLine(food) {
+    const coach = cfg().nutritionCoach ?? {};
+    const factsById = coach.factsById ?? {};
+    const factsByKind = coach.factsByKind ?? {};
+    const fallbackFacts = coach.fallbackFacts ?? [];
+    const advice = coach.advice ?? {};
+    const status = gameState.getDailyFeedStatus?.() ?? {
+      foodToday: 0,
+      drinkToday: 0,
+      totalToday: 0,
+    };
+    const pattern = gameState.getNutritionPattern?.(7) ?? {};
+
+    const fact =
+      pickOne(factsById[food?.id]) ||
+      pickOne(factsByKind[food?.kind]) ||
+      pickOne(fallbackFacts) ||
+      'Баланс еды и воды работает лучше любых крайностей.';
+
+    let adviceLine = '';
+    if (pattern.hasWaterGap) adviceLine = pickOne(advice.patternWaterGap);
+    else if (pattern.hasBadOveruse) adviceLine = pickOne(advice.patternBadOveruse);
+    else if (pattern.hasLowDiversity) adviceLine = pickOne(advice.patternLowDiversity);
+    else if ((status.drinkToday ?? 0) === 0) adviceLine = pickOne(advice.noDrinkYet);
+    else if ((status.foodToday ?? 0) === 0) adviceLine = pickOne(advice.noFoodYet);
+    else if (food?.kind === 'bad') adviceLine = pickOne(advice.badKind);
+    else if (food?.kind === 'good') adviceLine = pickOne(advice.goodKind);
+    if (!adviceLine) adviceLine = pickOne(advice.default);
+
+    const patternLine = (() => {
+      const scanCount = Math.max(0, Math.floor(pattern.scanCount ?? 0));
+      if (scanCount < 3) return '';
+      if (pattern.hasBadOveruse) {
+        const badPct = Math.round((pattern.badShare ?? 0) * 100);
+        return `📊 Паттерн: ${badPct}% сканов — сладкое/фаст за ${pattern.windowDays ?? 7} дн.`;
+      }
+      if (pattern.hasWaterGap) {
+        return `📊 Паттерн: за ${pattern.windowDays ?? 7} дн. почти нет напитков в сканах.`;
+      }
+      if (pattern.hasLowDiversity) {
+        return `📊 Паттерн: низкое разнообразие рациона за ${pattern.windowDays ?? 7} дн.`;
+      }
+      const drinkPct = Math.round((pattern.drinkShare ?? 0) * 100);
+      if (drinkPct > 0 && drinkPct < 20) {
+        return `📊 Паттерн: напитки — только ${drinkPct}% сканов за ${pattern.windowDays ?? 7} дн.`;
+      }
+      return '';
+    })();
+
+    return patternLine
+      ? `🧠 Факт: ${fact}\n💡 ${adviceLine}\n${patternLine}`
+      : `🧠 Факт: ${fact}\n💡 ${adviceLine}`;
   }
 
   function showResult(food, { customComment } = {}) {
@@ -279,6 +329,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     if (resultEmoji) resultEmoji.textContent = food.emoji;
     if (resultName) resultName.textContent = food.name;
     if (resultPhrase) resultPhrase.textContent = phrase;
+    if (resultCoach) resultCoach.textContent = getNutritionCoachLine(food);
     callbacks.onPhrase?.(phrase);
     showState('result');
     pendingFood = food;
@@ -363,6 +414,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     }
 
     btnDone?.addEventListener('click', () => {
+      vibrate(CONFIG.ui?.hapticFeedConfirm ?? [16, 18, 22]);
       if (pendingFood) {
         applyFeed(pendingFood);
       }

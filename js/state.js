@@ -116,6 +116,51 @@ function defaultFeedLog() {
   };
 }
 
+function dayKeyShift(daysAgo = 0) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - Math.max(0, Math.floor(daysAgo)));
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function defaultFeedHistoryEntry(day = todayKey()) {
+  return {
+    dayKey: day,
+    total: 0,
+    food: 0,
+    drink: 0,
+    good: 0,
+    neutral: 0,
+    bad: 0,
+  };
+}
+
+function normalizeFeedHistory(raw, keepDays = 14) {
+  if (!Array.isArray(raw)) return [];
+  const max = Math.max(3, Math.floor(keepDays));
+  const byDay = new Map();
+
+  raw.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') return;
+    const day = typeof entry.dayKey === 'string' ? entry.dayKey : '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    const base = byDay.get(day) ?? defaultFeedHistoryEntry(day);
+    base.total += Math.max(0, Math.floor(entry.total ?? 0));
+    base.food += Math.max(0, Math.floor(entry.food ?? 0));
+    base.drink += Math.max(0, Math.floor(entry.drink ?? 0));
+    base.good += Math.max(0, Math.floor(entry.good ?? 0));
+    base.neutral += Math.max(0, Math.floor(entry.neutral ?? 0));
+    base.bad += Math.max(0, Math.floor(entry.bad ?? 0));
+    byDay.set(day, base);
+  });
+
+  return [...byDay.values()]
+    .sort((a, b) => String(b.dayKey).localeCompare(String(a.dayKey)))
+    .slice(0, max);
+}
+
 function normalizeFeedLog(raw) {
   const def = defaultFeedLog();
   const src = raw && typeof raw === 'object' ? raw : {};
@@ -231,6 +276,7 @@ export function normalizeState(raw = {}) {
     badFoodTipDay: null,
     foodInteractCount: 0,
     feedLog: defaultFeedLog(),
+    feedHistory: [],
     cloud: {
       telegramId: null,
       telegramUsername: null,
@@ -279,6 +325,7 @@ export function normalizeState(raw = {}) {
     merged.foodInteractCount = Math.max(0, Math.floor(raw.foodInteractCount));
   }
   merged.feedLog = normalizeFeedLog(raw.feedLog);
+  merged.feedHistory = normalizeFeedHistory(raw.feedHistory);
 
   return merged;
 }
@@ -306,6 +353,7 @@ function flattenForUi(src = state) {
     badFoodTipDay: src.badFoodTipDay,
     foodInteractCount: src.foodInteractCount ?? 0,
     feedLog: normalizeFeedLog(src.feedLog),
+    feedHistory: normalizeFeedHistory(src.feedHistory),
   };
 
   STAT_KEYS.forEach((key) => {
@@ -546,6 +594,46 @@ export const gameState = {
     };
   },
 
+  getNutritionPattern(days = 7) {
+    const windowDays = Math.max(3, Math.min(14, Math.floor(days || 7)));
+    const history = normalizeFeedHistory(state.feedHistory, 14);
+    const byDay = new Map(history.map((h) => [h.dayKey, { ...h }]));
+    const today = normalizeFeedLog(state.feedLog);
+    const todayEntry = byDay.get(today.dayKey) ?? defaultFeedHistoryEntry(today.dayKey);
+    todayEntry.total = Math.max(todayEntry.total, today.totalToday ?? 0);
+    todayEntry.food = Math.max(todayEntry.food, today.foodToday ?? 0);
+    todayEntry.drink = Math.max(todayEntry.drink, today.drinkToday ?? 0);
+    byDay.set(today.dayKey, todayEntry);
+
+    const rows = [];
+    for (let i = 0; i < windowDays; i += 1) {
+      const day = dayKeyShift(i);
+      const row = byDay.get(day);
+      if (row) rows.push(row);
+    }
+
+    const total = rows.reduce((s, r) => s + (r.total ?? 0), 0);
+    const drink = rows.reduce((s, r) => s + (r.drink ?? 0), 0);
+    const bad = rows.reduce((s, r) => s + (r.bad ?? 0), 0);
+    const uniqueKinds = new Set();
+    rows.forEach((r) => {
+      if ((r.good ?? 0) > 0) uniqueKinds.add('good');
+      if ((r.neutral ?? 0) > 0) uniqueKinds.add('neutral');
+      if ((r.bad ?? 0) > 0) uniqueKinds.add('bad');
+    });
+
+    return {
+      windowDays,
+      scanCount: total,
+      drinkShare: total > 0 ? drink / total : 0,
+      badShare: total > 0 ? bad / total : 0,
+      diversityKinds: uniqueKinds.size,
+      hasWaterGap: total >= 4 && drink === 0,
+      hasBadOveruse: total >= 4 && bad / total >= 0.45,
+      hasLowDiversity: total >= 5 && uniqueKinds.size <= 1,
+    };
+  },
+
   consumeOfflineDecayReport() {
     const report = lastOfflineDecayReport;
     lastOfflineDecayReport = null;
@@ -706,13 +794,27 @@ export const gameState = {
 
   recordPhotoFeed(food = null) {
     state.feedLog = normalizeFeedLog(state.feedLog);
+    state.feedHistory = normalizeFeedHistory(state.feedHistory, 14);
     const drinkIds = CONFIG.feedLoop?.drinkFoodIds ?? [];
     const id = String(food?.id ?? '').toLowerCase();
     const isDrink = !!food?.thirstPriority || drinkIds.includes(id);
+    const kind = food?.kind === 'good' || food?.kind === 'neutral' || food?.kind === 'bad' ? food.kind : 'neutral';
     state.feedLog.totalToday += 1;
     if (isDrink) state.feedLog.drinkToday += 1;
     else state.feedLog.foodToday += 1;
     state.feedLog.lastType = isDrink ? 'drink' : 'food';
+
+    const day = state.feedLog.dayKey;
+    let entry = state.feedHistory.find((h) => h.dayKey === day);
+    if (!entry) {
+      entry = defaultFeedHistoryEntry(day);
+      state.feedHistory.unshift(entry);
+    }
+    entry.total += 1;
+    if (isDrink) entry.drink += 1;
+    else entry.food += 1;
+    entry[kind] += 1;
+    state.feedHistory = normalizeFeedHistory(state.feedHistory, 14);
     emitChange();
   },
 

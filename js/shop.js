@@ -1,6 +1,7 @@
 import { CONFIG } from './config.js';
 import { eventBus } from './eventBus.js';
 import { gameState } from './state.js';
+import { vibrate, vibrateTap } from './homeUi.js';
 
 function shopCfg() {
   return CONFIG.shop ?? {};
@@ -298,6 +299,10 @@ export function initShop({
 
   let isOpen = false;
   let activeTab = 'houses';
+  let holdTimerId = null;
+  let holdIntervalId = null;
+  let holdStatKey = null;
+  let suppressUpgradeClickUntil = 0;
 
   bindStaticLabels(screen);
 
@@ -342,6 +347,7 @@ export function initShop({
       ok = gameState.setHouseActive(id);
     }
     if (!ok) return;
+    vibrate(action === 'buy' ? (CONFIG.ui?.hapticShopBuy ?? [18, 16, 24]) : (CONFIG.ui?.hapticTapMs ?? 10));
     gameState.save();
     refresh();
   }
@@ -349,27 +355,73 @@ export function initShop({
   housesListEl?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-house-action]');
     if (!btn || btn.disabled) return;
+    vibrateTap();
     const id = btn.dataset.houseId;
     const action = btn.dataset.houseAction;
     if (!id || !action) return;
     handleHouseAction(id, action);
   });
 
-  function handleUpgradeAction(statKey) {
-    if (!gameState.upgradeStat(statKey)) return;
+  function handleUpgradeAction(statKey, { hold = false } = {}) {
+    if (!gameState.upgradeStat(statKey)) return false;
+    vibrate(hold ? (CONFIG.ui?.hapticUpgradeHold ?? 10) : (CONFIG.ui?.hapticUpgradeTap ?? [14, 12, 20]));
     gameState.save();
     refresh();
+    return true;
+  }
+
+  function stopUpgradeHold() {
+    if (holdTimerId) {
+      window.clearTimeout(holdTimerId);
+      holdTimerId = null;
+    }
+    if (holdIntervalId) {
+      window.clearInterval(holdIntervalId);
+      holdIntervalId = null;
+    }
+    holdStatKey = null;
+  }
+
+  function startUpgradeHold(statKey) {
+    stopUpgradeHold();
+    if (!statKey) return;
+    holdStatKey = statKey;
+    holdTimerId = window.setTimeout(() => {
+      holdIntervalId = window.setInterval(() => {
+        if (!holdStatKey) return;
+        const ok = handleUpgradeAction(holdStatKey, { hold: true });
+        if (!ok) stopUpgradeHold();
+      }, CONFIG.shop?.holdRepeatMs ?? 130);
+    }, CONFIG.shop?.holdStartDelayMs ?? 280);
   }
 
   upgradeListEl?.addEventListener('click', (e) => {
+    if (Date.now() < suppressUpgradeClickUntil) return;
     const btn = e.target.closest('[data-upgrade-action]');
     if (!btn || btn.disabled) return;
     const key = btn.dataset.stat;
     if (!key) return;
-    handleUpgradeAction(key);
+    handleUpgradeAction(key, { hold: false });
   });
 
+  upgradeListEl?.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('[data-upgrade-action="upgrade"]');
+    if (!btn || btn.disabled) return;
+    const key = btn.dataset.stat;
+    if (!key) return;
+    vibrateTap();
+    const ok = handleUpgradeAction(key, { hold: false });
+    if (!ok) return;
+    suppressUpgradeClickUntil = Date.now() + 450;
+    startUpgradeHold(key);
+  });
+
+  upgradeListEl?.addEventListener('pointerup', stopUpgradeHold);
+  upgradeListEl?.addEventListener('pointercancel', stopUpgradeHold);
+  upgradeListEl?.addEventListener('pointerleave', stopUpgradeHold);
+
   function forceUiClosed() {
+    stopUpgradeHold();
     isOpen = false;
     screen.classList.remove('is-open');
     screen.setAttribute('hidden', '');
@@ -379,6 +431,7 @@ export function initShop({
   }
 
   function close() {
+    stopUpgradeHold();
     shopTutorial?.forceReset?.();
     shopTutorial?.dismiss?.();
     if (!isOpen) {
@@ -429,10 +482,15 @@ export function initShop({
     }
   }
 
-  backBtn?.addEventListener('click', close);
+  backBtn?.addEventListener('click', () => {
+    vibrateTap();
+    stopUpgradeHold();
+    close();
+  });
 
   tabs.forEach((btn) => {
     btn.addEventListener('click', () => {
+      vibrateTap();
       const tab = btn.dataset.shopTab;
       if (!tab || tab === activeTab) return;
       activeTab = tab;

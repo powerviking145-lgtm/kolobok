@@ -273,6 +273,7 @@
             <p class="food-photo-result__hero" id="food-photo-result-emoji" aria-hidden="true"></p>
             <p class="food-photo-result__name" id="food-photo-result-name"></p>
             <p class="receipt-scan-modal__meta" id="food-photo-result-phrase"></p>
+            <p class="food-photo-result__coach" id="food-photo-result-coach"></p>
             <button type="button" class="btn btn--primary receipt-scan-modal__close-btn" id="food-photo-done">Покормить</button>
           </div>
 
@@ -1025,7 +1026,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '150';
+      var BUILD = '155';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());
