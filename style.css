@@ -5770,10 +5770,11 @@ html.is-tutorial-active #food-photo-done.tutorial-highlight {
   font-weight: 800 !important;
 }
 
-.tutorial-overlay[hidden] {
+.tutorial-overlay[hidden],
+.tutorial-overlay.tutorial-overlay--off {
   display: none !important;
-  visibility: hidden;
-  pointer-events: none;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .tutorial-spotlight {
@@ -5814,7 +5815,7 @@ html.is-tutorial-active #food-photo-done.tutorial-highlight {
   z-index: 20;
   width: min(calc(100% - 1.5rem), 20rem);
   max-width: calc(100% - 1.5rem);
-  max-height: min(40dvh, 17rem);
+  max-height: min(52dvh, 20rem);
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -5843,11 +5844,29 @@ html.is-tutorial-active #food-photo-done.tutorial-highlight {
   margin-bottom: 0.75rem;
 }
 
+.tutorial-card.tutorial-card--examples {
+  width: min(calc(100% - 0.65rem), 22.5rem);
+  max-width: calc(100% - 0.65rem);
+  max-height: none;
+  overflow: visible;
+  padding: 0.75rem 0.85rem 0.7rem;
+}
+
+.tutorial-card--examples .tutorial-card__text {
+  font-size: 0.8rem;
+  line-height: 1.32;
+  margin-bottom: 0.45rem;
+}
+
+.tutorial-card--examples .tutorial-dots {
+  margin-top: 0.35rem;
+}
+
 .tutorial-examples {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.45rem;
-  margin: 0 0 0.7rem;
+  gap: 0.35rem;
+  margin: 0 0 0.5rem;
 }
 
 .tutorial-example {
@@ -5871,6 +5890,17 @@ html.is-tutorial-active #food-photo-done.tutorial-highlight {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
+}
+
+.tutorial-card--examples .tutorial-example img {
+  aspect-ratio: 5 / 4;
+  max-height: 3.85rem;
+}
+
+.tutorial-card--examples .tutorial-example figcaption {
+  padding: 0.16rem 0.28rem 0.2rem;
+  font-size: 0.6rem;
+  line-height: 1.12;
 }
 
 .tutorial-example figcaption {

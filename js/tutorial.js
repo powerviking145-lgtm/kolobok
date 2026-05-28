@@ -32,6 +32,7 @@ export function createTutorialController({
   onFoodTapped,
   onSpawnTutorialFood,
   onRequestPhotoFeed,
+  onUnlock,
 }) {
   const steps = CONFIG.tutorial.steps;
   let currentStep = 0;
@@ -182,7 +183,7 @@ export function createTutorialController({
     spotlightTarget = null;
   }
 
-  function cleanupUi() {
+  function resetTutorialVisuals() {
     clearSpotlight();
     hideStepSkip();
     hideDemoSpeech();
@@ -191,9 +192,19 @@ export function createTutorialController({
       el.classList.remove('tutorial-highlight', 'tutorial-cutout');
     });
     document.getElementById('food-photo-done')?.classList.remove('tutorial-highlight', 'tutorial-cutout');
+    if (card) {
+      card.classList.remove('tutorial-card--examples');
+      card.style.removeProperty('display');
+    }
     overlay?.setAttribute('hidden', '');
     overlay?.setAttribute('aria-hidden', 'true');
+    overlay?.classList.add('tutorial-overlay--off');
     document.documentElement.classList.remove('is-tutorial-active');
+  }
+
+  function cleanupUi({ unlock = false } = {}) {
+    resetTutorialVisuals();
+    if (unlock) onUnlock?.();
   }
 
   /** Колобок — кнопка на весь stage; подсветка только по центру (персонаж). */
@@ -632,7 +643,7 @@ export function createTutorialController({
 
   function finish() {
     active = false;
-    cleanupUi();
+    cleanupUi({ unlock: true });
     if (resizeHandler) {
       window.removeEventListener('resize', resizeHandler);
       resizeHandler = null;
@@ -686,7 +697,10 @@ export function createTutorialController({
       card.style.visibility = 'visible';
       card.style.display = 'block';
       card.removeAttribute('hidden');
+      const hasExamples = Array.isArray(step?.examples) && step.examples.length > 0;
+      card.classList.toggle('tutorial-card--examples', hasExamples);
     }
+    overlay?.classList.remove('tutorial-overlay--off');
 
     replySystem?.hideAll();
     hideDemoSpeech();
@@ -761,9 +775,10 @@ export function createTutorialController({
       resizeHandler = null;
     }
     active = false;
-    cleanupUi();
+    resetTutorialVisuals();
     active = true;
     currentStep = 0;
+    overlay?.classList.remove('tutorial-overlay--off');
     overlay?.removeAttribute('hidden');
     overlay?.setAttribute('aria-hidden', 'false');
     document.documentElement.classList.add('is-tutorial-active');

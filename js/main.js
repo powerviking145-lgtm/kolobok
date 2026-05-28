@@ -708,23 +708,45 @@ function purgeTutorialChrome() {
   document.documentElement.classList.remove(
     'is-tutorial-active',
     'is-food-photo-active',
-    'is-lecture-active'
+    'is-lecture-active',
+    'is-shop-hint-active'
   );
-  ui.app?.classList.remove('is-feed-active', 'is-purchase-active', 'is-unpack-reaction');
-  document.querySelectorAll('.tutorial-highlight, .tutorial-cutout').forEach((el) => {
-    el.classList.remove('tutorial-highlight', 'tutorial-cutout');
-    el.style.removeProperty('--tutorial-dim');
-  });
+  document.body?.classList.remove('is-tutorial-active', 'is-food-photo-active');
+  ui.app?.classList.remove(
+    'is-feed-active',
+    'is-purchase-active',
+    'is-unpack-reaction',
+    'is-shop-active'
+  );
+  document.getElementById('home-ui')?.classList.remove('is-shop-active');
+
+  document
+    .querySelectorAll('.tutorial-highlight, .tutorial-cutout, .tutorial-spotlight--stats')
+    .forEach((el) => {
+      el.classList.remove('tutorial-highlight', 'tutorial-cutout', 'tutorial-spotlight--stats');
+      el.style.removeProperty('--tutorial-dim');
+      el.style.removeProperty('opacity');
+      el.style.removeProperty('pointer-events');
+    });
+
   const overlay = document.getElementById('tutorial-overlay');
   const spotlight = document.getElementById('tutorial-spotlight');
+  const tutorialCard = document.getElementById('tutorial-card');
   if (overlay) {
+    overlay.hidden = true;
     overlay.setAttribute('hidden', '');
     overlay.setAttribute('aria-hidden', 'true');
+    overlay.classList.add('tutorial-overlay--off');
   }
   if (spotlight) {
     spotlight.setAttribute('hidden', '');
     spotlight.classList.remove('tutorial-spotlight--full', 'tutorial-spotlight--stats');
   }
+  if (tutorialCard) {
+    tutorialCard.classList.remove('tutorial-card--examples');
+    tutorialCard.style.display = 'none';
+  }
+
   const modal = document.getElementById('food-photo-modal');
   if (modal) {
     modal.hidden = true;
@@ -732,11 +754,19 @@ function purgeTutorialChrome() {
     modal.classList.remove('is-open');
   }
   foodPhotoFeed?.forceClose?.();
+
   document.getElementById('footer-buttons')?.classList.remove('is-hidden');
   ui.footer?.classList.remove('is-hidden');
-  document.getElementById('home-ui')?.classList.remove('is-shop-active');
+  ['btn-menu', 'btn-exit', 'btn-receipt', 'btn-shop', 'btn-run'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.removeProperty('opacity');
+    el.style.removeProperty('pointer-events');
+    el.removeAttribute('aria-disabled');
+  });
+
   kolobokLecture?.dismiss?.();
-  replySystem?.hideAll?.();
+  clearPurchaseOverlayState();
 }
 
 function clearStuckFeedVisualState() {
@@ -1360,16 +1390,7 @@ function resumeHomeAfterFeed(cartItems) {
   kolobokLecture?.dismiss?.();
   replySystem?.hideNutrition?.();
   replySystem?.hideAll();
-  const tutorialStillActive = tutorial?.isActive?.();
-  if (!tutorialStillActive) {
-    document.documentElement.classList.remove(
-      'is-lecture-active',
-      'is-shop-hint-active',
-      'is-tutorial-active'
-    );
-  } else {
-    document.documentElement.classList.remove('is-lecture-active', 'is-shop-hint-active');
-  }
+  document.documentElement.classList.remove('is-lecture-active', 'is-shop-hint-active');
   ui.app?.classList.remove(
     'is-purchase-active',
     'is-unpack-reaction',
@@ -1384,7 +1405,7 @@ function resumeHomeAfterFeed(cartItems) {
   ui.footer?.classList.remove('is-hidden');
   syncPurchaseStuckState();
   updateShopButton();
-  if (!tutorialStillActive) {
+  if (!tutorial?.isActive?.()) {
     resumeGameTimersOnly();
     homeSpawns?.repopulate?.(cartItems || []);
     ensureHomeScreenAwake({ refreshSpeech: true });
@@ -1515,11 +1536,9 @@ function restoreHomeIdleState() {
   replySystem?.hideNutrition?.();
   replySystem?.hideAll();
 
-  document.documentElement.classList.remove('is-shop-hint-active');
+  document.documentElement.classList.remove('is-lecture-active', 'is-shop-hint-active');
   if (!tutorial?.isActive?.()) {
     purgeTutorialChrome();
-  } else {
-    document.documentElement.classList.remove('is-lecture-active');
   }
 
   clearPurchaseOverlayState();
@@ -2325,14 +2344,16 @@ export async function launchGame() {
         resumeHomeVideo();
       },
       onComplete: () => {
-        purgeTutorialChrome();
         restoreFeedDockInteractivity();
         resumeTimers();
         activateHomeScreen();
         resumeHomeVideo();
         window.setTimeout(() => resumeHomeVideo(), 120);
         currentPhrase = '';
-        window.setTimeout(() => refreshPhrase(true), 200);
+        window.setTimeout(() => {
+          purgeTutorialChrome();
+          refreshPhrase(true);
+        }, 80);
         tryShowShopUpgradeHint();
       },
       onRequestPhotoFeed: (step) => {
@@ -2352,6 +2373,7 @@ export async function launchGame() {
       },
       onSpawnTutorialFood: () => homeSpawns?.spawnTutorialFood(),
       onFoodTapped: () => {},
+      onUnlock: () => purgeTutorialChrome(),
     });
 
     document.getElementById('btn-tutorial')?.addEventListener('click', (e) => {

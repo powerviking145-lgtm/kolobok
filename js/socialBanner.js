@@ -31,6 +31,10 @@ export function initSocialBanner(
       totalMinutes < 60 ? `${totalMinutes} м` : totalHours < 24 ? `${totalHours} ч` : `${totalDays} д`;
 
     lifeCountEl.textContent = lifeLabel;
+    const suffixEl = document.getElementById('life-banner-suffix');
+    if (suffixEl) {
+      suffixEl.textContent = cfg.lifeSuffix ?? ' (время) вне печки';
+    }
 
     if (lastLifeLabel != null && lifeLabel !== lastLifeLabel && lifeBannerEl) {
       lifeBannerEl.classList.remove('is-life-pulse');
