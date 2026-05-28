@@ -5782,6 +5782,21 @@ html.is-tutorial-active #food-photo-done.tutorial-highlight {
   pointer-events: none !important;
 }
 
+html:not(.is-tutorial-active) #tutorial-overlay,
+html:not(.is-tutorial-active) #tutorial-spotlight {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+html:not(.is-tutorial-active) .home-spawns {
+  pointer-events: none;
+}
+
+html:not(.is-tutorial-active) .home-spawn:not(.tutorial-food) {
+  pointer-events: auto;
+}
+
 .tutorial-spotlight {
   position: absolute;
   z-index: 2;

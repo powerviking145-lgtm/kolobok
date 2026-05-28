@@ -306,7 +306,7 @@ export function bindHomeSliceInput({
   function shouldIgnoreSliceTarget(target) {
     if (!target?.closest) return false;
     return !!target.closest(
-      '#nutrition-tip, .tutorial-card, #tutorial-overlay, #footer-buttons, #stats-panel .icon-btn, .menu-sheet, .exit-modal, #shop-upgrade-hint, #shop-screen, .shop-tutorial, html.is-bad-food-tip-active #tutorial-overlay'
+      '#nutrition-tip, .tutorial-card, #tutorial-overlay, #tutorial-spotlight, #food-photo-modal.is-open, #footer-buttons, #stats-panel .icon-btn, .menu-sheet, .exit-modal, #shop-upgrade-hint, #shop-screen, .shop-tutorial, #purchase-layer:not([hidden])'
     );
   }
 

@@ -459,6 +459,14 @@ export function createHomeSpawns({
     });
   }
 
+  function resetSliceBindings() {
+    if (unbindSlice) {
+      unbindSlice();
+      unbindSlice = null;
+    }
+    ensureSliceBindings();
+  }
+
   function trySpawnToMax(ignoreBlock = false) {
     if (!container) return;
     running = true;
@@ -608,6 +616,8 @@ export function createHomeSpawns({
       });
       if (!spawnTimerId) scheduleNext();
     },
+
+    resetSliceBindings,
 
     spawnTutorialFood() {
       if (!container) return;
