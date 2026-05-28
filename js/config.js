@@ -594,7 +594,7 @@ export const CONFIG = {
     totalPlayers: 156,
     shimmerIntervalMs: 12000,
     shimmerDelayMs: 5000,
-    lifeSuffix: ' (время) вне печки',
+    lifeSuffix: ' вне печки',
   },
 
   roadmap: {

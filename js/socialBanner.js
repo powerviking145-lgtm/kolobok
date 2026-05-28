@@ -33,7 +33,7 @@ export function initSocialBanner(
     lifeCountEl.textContent = lifeLabel;
     const suffixEl = document.getElementById('life-banner-suffix');
     if (suffixEl) {
-      suffixEl.textContent = cfg.lifeSuffix ?? ' (время) вне печки';
+      suffixEl.textContent = cfg.lifeSuffix ?? ' вне печки';
     }
 
     if (lastLifeLabel != null && lifeLabel !== lastLifeLabel && lifeBannerEl) {

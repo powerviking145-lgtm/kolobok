@@ -37,6 +37,7 @@ export function createTutorialController({
   const steps = CONFIG.tutorial.steps;
   let currentStep = 0;
   let active = false;
+  let finishing = false;
   let resizeHandler = null;
   let spotlightTarget = null;
   let stepSkipTimerId = null;
@@ -200,11 +201,6 @@ export function createTutorialController({
     overlay?.setAttribute('aria-hidden', 'true');
     overlay?.classList.add('tutorial-overlay--off');
     document.documentElement.classList.remove('is-tutorial-active');
-  }
-
-  function cleanupUi({ unlock = false } = {}) {
-    resetTutorialVisuals();
-    if (unlock) onUnlock?.();
   }
 
   /** Колобок — кнопка на весь stage; подсветка только по центру (персонаж). */
@@ -641,16 +637,30 @@ export function createTutorialController({
     document.documentElement.classList.remove('is-lecture-active');
   }
 
-  function finish() {
+  function armUnlock() {
+    resetTutorialVisuals();
+    onUnlock?.();
+  }
+
+  function finalizeTutorial() {
+    if (finishing) return;
+    finishing = true;
     active = false;
-    cleanupUi({ unlock: true });
+    armUnlock();
     if (resizeHandler) {
       window.removeEventListener('resize', resizeHandler);
       resizeHandler = null;
     }
+    hideDemoSpeech();
     localStorage.setItem(STORAGE_KEY, 'true');
-    replySystem?.hideAll();
+    window.requestAnimationFrame(() => armUnlock());
+    window.setTimeout(() => armUnlock(), 50);
+    window.setTimeout(() => armUnlock(), 300);
     onComplete?.();
+  }
+
+  function finish() {
+    finalizeTutorial();
   }
 
   function playFinale() {
@@ -684,8 +694,9 @@ export function createTutorialController({
   function showStep(index) {
     const step = steps[index];
     if (!step) {
+      armUnlock();
       playFinale();
-      window.setTimeout(finish, 900);
+      window.setTimeout(finalizeTutorial, 900);
       return;
     }
 
@@ -761,8 +772,9 @@ export function createTutorialController({
     hideStepSkip();
     hideDemoSpeech();
     if (currentStep >= steps.length - 1) {
+      armUnlock();
       playFinale();
-      window.setTimeout(finish, 900);
+      window.setTimeout(finalizeTutorial, 900);
       return;
     }
     showStep(currentStep + 1);
@@ -775,6 +787,7 @@ export function createTutorialController({
       resizeHandler = null;
     }
     active = false;
+    finishing = false;
     resetTutorialVisuals();
     active = true;
     currentStep = 0;
@@ -804,8 +817,9 @@ export function createTutorialController({
   if (skipBtn) {
     skipBtn.addEventListener('click', () => {
       hideDemoSpeech();
+      armUnlock();
       playFinale();
-      window.setTimeout(finish, 400);
+      window.setTimeout(finalizeTutorial, 400);
     });
   }
 

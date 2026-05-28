@@ -767,6 +767,10 @@ function purgeTutorialChrome() {
 
   kolobokLecture?.dismiss?.();
   clearPurchaseOverlayState();
+
+  const idleBubble = document.getElementById('idle-chat-bubble');
+  idleBubble?.classList.remove('is-tutorial-demo', 'is-updating');
+  shopUpgradeHint?.hide?.();
 }
 
 function clearStuckFeedVisualState() {
@@ -2344,17 +2348,21 @@ export async function launchGame() {
         resumeHomeVideo();
       },
       onComplete: () => {
+        purgeTutorialChrome();
+        shopUpgradeHint?.hide();
         restoreFeedDockInteractivity();
-        resumeTimers();
-        activateHomeScreen();
-        resumeHomeVideo();
-        window.setTimeout(() => resumeHomeVideo(), 120);
+        restoreHomeIdleState();
         currentPhrase = '';
+        refreshPhrase(true);
+        resumeHomeVideo();
+        const greetDelay = CONFIG.greeting?.delayMs ?? 600;
+        window.setTimeout(() => tryShowHomeGreeting(), greetDelay);
         window.setTimeout(() => {
           purgeTutorialChrome();
           refreshPhrase(true);
-        }, 80);
-        tryShowShopUpgradeHint();
+          resumeHomeVideo();
+          tryShowShopUpgradeHint();
+        }, 1500);
       },
       onRequestPhotoFeed: (step) => {
         if (step?.action === 'show_confirm_demo' || step?.id === 'feed_manual_pick') {
