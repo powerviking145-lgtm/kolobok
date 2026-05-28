@@ -5708,13 +5708,19 @@ html.is-tutorial-active .tutorial-overlay {
 
 .tutorial-cutout {
   position: relative;
+  isolation: isolate;
+}
+
+html.is-tutorial-active .tutorial-cutout {
   z-index: 901 !important;
   pointer-events: auto;
-  isolation: isolate;
 }
 
 .tutorial-highlight {
   position: relative;
+}
+
+html.is-tutorial-active .tutorial-highlight {
   z-index: 901 !important;
   box-shadow: 0 0 1.25rem 0.35rem rgba(255, 184, 77, 0.55) !important;
 }
@@ -5952,6 +5958,11 @@ html.is-tutorial-active .home-ui .actions {
   pointer-events: none;
 }
 
+html.is-tutorial-active #btn-receipt.tutorial-cutout,
+html.is-tutorial-active #btn-run.tutorial-cutout {
+  pointer-events: auto !important;
+}
+
 html.is-tutorial-active .home-ui .top-panel__stats {
   pointer-events: none;
 }
@@ -6040,11 +6051,13 @@ html.is-tutorial-active #idle-chat-bubble.is-tutorial-demo.is-visible ~ .speech-
   visibility: visible;
 }
 
+html:not(.is-tutorial-active) #idle-chat-bubble.is-visible,
 html:not(.is-tutorial-active) #idle-chat-dock .speech-bubble.is-visible {
-  visibility: visible;
-  opacity: 1;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
+html:not(.is-tutorial-active) #idle-chat-bubble.is-visible ~ .speech-thought,
 html:not(.is-tutorial-active) #idle-chat-dock .speech-bubble.is-visible ~ .speech-thought {
   opacity: 1;
   visibility: visible;

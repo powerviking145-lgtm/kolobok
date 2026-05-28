@@ -53,6 +53,7 @@ export function createTutorialController({
   function scheduleStepSkip(step) {
     hideStepSkip();
     if (!stepSkipBtn) return;
+    if (step?.action === 'wait_for_photo_feed') return;
     const isWaitingStep =
       step?.action === 'wait_for_tap' ||
       step?.action === 'wait_for_photo_feed';
@@ -384,6 +385,13 @@ export function createTutorialController({
       target = document.querySelector(step.targetSelector);
     }
 
+    if (step.noSpotlight) {
+      clearSpotlight();
+      applySpotlight(null, dim);
+      positionCard(step);
+      return;
+    }
+
     if (step.id === 'speech_example' && step.demoSpeech) {
       applySpotlight(null, dim);
       showDemoSpeech(step.demoSpeech);
@@ -424,18 +432,42 @@ export function createTutorialController({
     positionCard(step);
   }
 
+  function positionCardBelowTarget(step, selector) {
+    if (!card) return false;
+    const target = document.querySelector(selector || step.targetSelector || '');
+    if (!target) return false;
+
+    const b = overlayBounds();
+    const pad = Math.max(12, Math.min(20, b.width * 0.04));
+    const rect = target.getBoundingClientRect();
+    const { h: cardH } = measureCardSize();
+
+    card.classList.remove(
+      'tutorial-card--center',
+      'tutorial-card--top',
+      'tutorial-card--bottom',
+      'tutorial-card--bottom-left',
+      'tutorial-card--side'
+    );
+    card.classList.add('tutorial-card--below-target');
+    const top = Math.min(rect.bottom - b.top + pad, Math.max(pad, b.height - cardH - pad));
+    card.style.left = '50%';
+    card.style.top = `${top}px`;
+    card.style.transform = 'translate(-50%, 0)';
+    return true;
+  }
+
   function positionCard(step) {
     if (!card) return;
     const b = overlayBounds();
     const pad = Math.max(12, Math.min(20, b.width * 0.04));
     let placement = step.cardPlacement || 'center';
 
-    if (
-      step.id === 'welcome' ||
-      step.id === 'feed_intro' ||
-      step.id === 'feed_wait' ||
-      step.id === 'feed_manual_pick'
-    ) {
+    if (step.cardPlacement === 'below-target' || step.id === 'welcome') {
+      if (positionCardBelowTarget(step, step.targetSelector || '#stats-bars')) return;
+    }
+
+    if (step.id === 'feed_wait' || step.id === 'feed_manual_pick') {
       placement = 'top';
       const { w: cardW, h: cardH } = measureCardSize();
       card.classList.remove(
@@ -667,7 +699,13 @@ export function createTutorialController({
       nextBtn.style.display = waitTap || waitPhotoFeed ? 'none' : '';
       nextBtn.textContent = step.buttonText || 'Дальше';
     }
-    scheduleStepSkip(step);
+    if (stepSkipBtn) {
+      if (waitPhotoFeed) {
+        hideStepSkip();
+      } else {
+        scheduleStepSkip(step);
+      }
+    }
 
     if (confirmDemo) {
       window.setTimeout(() => onRequestPhotoFeed?.(step), 80);
