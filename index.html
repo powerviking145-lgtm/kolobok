@@ -300,6 +300,17 @@
         </div>
       </div>
 
+      <div class="death-modal" id="death-modal" hidden aria-hidden="true">
+        <div class="death-modal__backdrop"></div>
+        <div class="death-modal__card" role="dialog" aria-modal="true" aria-labelledby="death-modal-title">
+          <p class="death-modal__title" id="death-modal-title">Колобок погиб</p>
+          <p class="death-modal__text" id="death-modal-text">Здоровье упало до нуля. Испечь нового колобка?</p>
+          <div class="death-modal__actions">
+            <button type="button" class="btn btn--primary" id="death-modal-rebake">Испечь нового</button>
+          </div>
+        </div>
+      </div>
+
       <div class="receipt-scan-modal" id="receipt-scan-modal" hidden aria-hidden="true">
 
         <div class="receipt-scan-modal__backdrop" id="receipt-scan-backdrop"></div>
@@ -1042,7 +1053,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '160';
+      var BUILD = '161';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

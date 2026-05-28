@@ -2715,8 +2715,19 @@ html.is-shop-hint-active #btn-shop.shop-hint-highlight {
   pointer-events: none;
 }
 
+.death-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  pointer-events: none;
+}
+
 .menu-sheet.is-open,
 .exit-modal.is-open {
+  pointer-events: auto;
+}
+
+.death-modal.is-open {
   pointer-events: auto;
 }
 
@@ -2725,6 +2736,12 @@ html.is-shop-hint-active #btn-shop.shop-hint-highlight {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.55);
+}
+
+.death-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
 }
 
 .menu-sheet__panel {
@@ -2837,6 +2854,49 @@ html.is-shop-hint-active #btn-shop.shop-hint-highlight {
 
 .exit-modal__actions .btn {
   width: 100%;
+}
+
+.death-modal__card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.92);
+  width: min(92%, 19rem);
+  padding: clamp(1rem, 4.5vw, 1.25rem);
+  border-radius: 0.85rem;
+  background: linear-gradient(180deg, #fff5e1 0%, #ffedc9 100%);
+  color: var(--game-text-dark);
+  opacity: 0;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.death-modal.is-open .death-modal__card {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.death-modal__title {
+  font-size: clamp(1rem, 4.5vw, 1.2rem);
+  font-weight: 900;
+  margin-bottom: 0.5rem;
+}
+
+.death-modal__text {
+  font-size: clamp(0.8rem, 3.6vw, 0.9rem);
+  line-height: 1.45;
+  margin-bottom: 0.85rem;
+  color: rgba(42, 31, 26, 0.9);
+}
+
+.death-modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.death-modal__actions .btn {
+  width: 100%;
+  min-height: 2.8rem;
 }
 
 .onboarding-modal {

@@ -627,6 +627,11 @@ export const CONFIG = {
       stayLabel: 'Остаться',
       leaveLabel: 'Выйти',
     },
+    death: {
+      title: 'Колобок погиб',
+      text: 'Здоровье упало до нуля. Испечь нового колобка?',
+      rebakeLabel: 'Испечь нового',
+    },
   },
 
   homeLayout: {

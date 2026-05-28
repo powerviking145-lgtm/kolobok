@@ -101,6 +101,7 @@ let tutorial = null;
 let disposeParticles = null;
 let criticalWarnTimerId = null;
 let lastCriticalWarnAt = 0;
+let deathFlowActive = false;
 const TAP_EMOJIS = ['😄', '😋', '🥰', '😎', '❤️'];
 const homeVideo = {
   active: null,
@@ -320,6 +321,85 @@ async function handleResetProgress(closeMenuSheet) {
   } else {
     refreshPhrase(true);
   }
+}
+
+async function rebakeKolobokAfterDeath() {
+  if (deathFlowActive) return;
+  deathFlowActive = true;
+  const deathModal = document.getElementById('death-modal');
+  const closeDeathModal = () => {
+    if (!deathModal) return;
+    deathModal.classList.remove('is-open');
+    deathModal.setAttribute('hidden', '');
+    deathModal.setAttribute('aria-hidden', 'true');
+  };
+
+  try {
+    kolobokLecture?.dismiss();
+    replySystem?.hideAll();
+    purchase?.forceReset?.();
+    shopTutorial?.forceReset?.();
+    clearLastFeedTimestamp();
+    stopFeedCooldownTicker();
+    pauseTimers();
+    homeSpawns?.stop();
+
+    gameState.resetAll();
+    resetTutorialFlag();
+
+    await wipeCloudProfile();
+    markCloudDirty();
+    await flushCloudSync().catch(() => {});
+
+    closeDeathModal();
+    activateHomeScreen();
+    currentPhrase = '';
+    renderUI(false);
+
+    await runOnboardingIfNeeded();
+
+    if (!isTutorialCompleted()) {
+      pauseGameTimers();
+      homeSpawns?.stop();
+      tutorial?.start();
+      resumeHomeVideo();
+    } else {
+      resumeTimers();
+      refreshPhrase(true);
+    }
+  } finally {
+    deathFlowActive = false;
+  }
+}
+
+function updateDeathState(stats) {
+  const deathModal = document.getElementById('death-modal');
+  if (!deathModal) return;
+  const deadNow = Math.round(stats.health ?? 0) <= 0;
+  if (!deadNow || deathFlowActive) {
+    if (!deathFlowActive) {
+      deathModal.classList.remove('is-open');
+      deathModal.setAttribute('hidden', '');
+      deathModal.setAttribute('aria-hidden', 'true');
+    }
+    return;
+  }
+
+  if (!deathModal.classList.contains('is-open')) {
+    const tp = CONFIG.topPanel ?? {};
+    const titleEl = document.getElementById('death-modal-title');
+    const textEl = document.getElementById('death-modal-text');
+    const rebakeBtn = document.getElementById('death-modal-rebake');
+    if (titleEl) titleEl.textContent = tp.death?.title ?? 'Колобок погиб';
+    if (textEl) textEl.textContent = tp.death?.text ?? 'Здоровье упало до нуля. Испечь нового?';
+    if (rebakeBtn) rebakeBtn.textContent = tp.death?.rebakeLabel ?? 'Испечь нового';
+  }
+
+  deathModal.removeAttribute('hidden');
+  deathModal.setAttribute('aria-hidden', 'false');
+  deathModal.classList.add('is-open');
+  pauseTimers();
+  homeSpawns?.stop();
 }
 
 function initTopPanelChrome() {
@@ -713,6 +793,7 @@ function renderUI(animatePhrase = false) {
   updateReceiptButton(stats);
   updateBurnRunUI(stats);
   updateShopButton();
+  updateDeathState(stats);
 
   if (!currentPhrase) {
     refreshPhrase(false);
@@ -733,6 +814,7 @@ function onStateChanged() {
   updateReceiptButton(stats);
   updateBurnRunUI(stats);
   updateShopButton();
+  updateDeathState(stats);
 
   if (moodChanged && !burnRunActive) {
     refreshPhrase(true);
@@ -1662,6 +1744,13 @@ function cacheElements() {
   setActionButtonLabels();
   const btnUnpack = document.getElementById('btn-unpack');
   if (btnUnpack) btnUnpack.textContent = CONFIG.ui.openBagButton;
+
+  const deathRebake = document.getElementById('death-modal-rebake');
+  if (deathRebake) {
+    deathRebake.addEventListener('click', () => {
+      rebakeKolobokAfterDeath();
+    });
+  }
 }
 
 function initRunner() {
