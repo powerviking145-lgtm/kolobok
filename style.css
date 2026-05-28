@@ -5845,6 +5845,12 @@ html.is-tutorial-active .stage-hero.tutorial-highlight {
   margin-bottom: 0.55rem;
 }
 
+.tutorial-card__step-skip {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+}
+
 .tutorial-dots {
   display: flex;
   justify-content: center;

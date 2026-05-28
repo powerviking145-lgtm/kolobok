@@ -2267,7 +2267,9 @@ export async function launchGame() {
       spotlight: document.getElementById('tutorial-spotlight'),
       card: document.getElementById('tutorial-card'),
       textEl: document.getElementById('tutorial-text'),
+      examplesEl: document.getElementById('tutorial-examples'),
       nextBtn: document.getElementById('tutorial-next'),
+      stepSkipBtn: document.getElementById('tutorial-step-skip'),
       skipBtn: document.getElementById('tutorial-skip'),
       dotsEl: document.getElementById('tutorial-dots'),
       stage: ui.kolobokStage,
@@ -2281,6 +2283,8 @@ export async function launchGame() {
       },
       onComplete: () => {
         document.documentElement.classList.remove('is-tutorial-active');
+        foodPhotoFeed?.close?.();
+        restoreFeedDockInteractivity();
         resumeTimers();
         activateHomeScreen();
         resumeHomeVideo();
@@ -2290,15 +2294,12 @@ export async function launchGame() {
         tryShowShopUpgradeHint();
       },
       onRequestPhotoFeed: (step) => {
-        if (step?.id === 'feed_source') {
-          if (!foodPhotoFeed?.isActive?.()) {
-            foodPhotoFeed?.open?.();
-          }
-          return;
-        }
         if (step?.id === 'feed_wait') {
           if (tutorialAutoFeedUsed) return;
           tutorialAutoFeedUsed = true;
+          if (foodPhotoFeed?.isActive?.()) {
+            foodPhotoFeed.close();
+          }
           foodPhotoFeed?.openTutorialPreset?.({
             foodId: 'water',
             customComment: 'Я уже нашел тебе воду, но только на этот раз. Дальше фоткаешь сам, хозяин.',

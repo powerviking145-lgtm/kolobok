@@ -427,8 +427,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     foodId = 'water',
     customComment = 'Я уже нашел тебе воду на первый раз. Но дальше фоткаешь сам, бро.',
   } = {}) {
-    if (active) return;
-    setOpen(true);
+    if (!active) setOpen(true);
     const fallback = getFoodList().find((f) => isDrinkFood(f)) ?? getFoodList()[0] ?? null;
     const food = getFoodById(foodId) ?? fallback;
     if (!food) {

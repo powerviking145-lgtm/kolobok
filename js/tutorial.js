@@ -19,6 +19,7 @@ export function createTutorialController({
   textEl,
   examplesEl,
   nextBtn,
+  stepSkipBtn,
   skipBtn,
   dotsEl,
   stage,
@@ -37,6 +38,38 @@ export function createTutorialController({
   let active = false;
   let resizeHandler = null;
   let spotlightTarget = null;
+  let stepSkipTimerId = null;
+
+  function hideStepSkip() {
+    if (stepSkipTimerId) {
+      window.clearTimeout(stepSkipTimerId);
+      stepSkipTimerId = null;
+    }
+    if (!stepSkipBtn) return;
+    stepSkipBtn.setAttribute('hidden', '');
+    stepSkipBtn.style.display = 'none';
+  }
+
+  function scheduleStepSkip(step) {
+    hideStepSkip();
+    if (!stepSkipBtn) return;
+    const isWaitingStep =
+      step?.action === 'wait_for_tap' ||
+      step?.action === 'wait_for_photo_feed';
+    if (!isWaitingStep) return;
+    stepSkipBtn.textContent = CONFIG.tutorial?.stepSkipLabel ?? 'Пропустить шаг';
+    const isCritical = step?.action === 'wait_for_photo_feed';
+    const delay = Math.floor(
+      isCritical
+        ? (CONFIG.tutorial?.stepSkipDelayCriticalMs ?? 3000)
+        : (CONFIG.tutorial?.stepSkipDelayMs ?? 6000)
+    );
+    stepSkipTimerId = window.setTimeout(() => {
+      if (!active) return;
+      stepSkipBtn.removeAttribute('hidden');
+      stepSkipBtn.style.display = '';
+    }, delay);
+  }
 
   function renderDots() {
     if (!dotsEl) return;
@@ -150,6 +183,7 @@ export function createTutorialController({
 
   function cleanupUi() {
     clearSpotlight();
+    hideStepSkip();
     hideDemoSpeech();
     document.querySelectorAll('.tutorial-food').forEach((el) => el.remove());
     overlay?.setAttribute('hidden', '');
@@ -503,6 +537,7 @@ export function createTutorialController({
       nextBtn.style.display = waitTap || waitPhotoFeed ? 'none' : '';
       nextBtn.textContent = step.buttonText || 'Дальше';
     }
+    scheduleStepSkip(step);
 
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => layoutStepSpotlight(step));
@@ -531,6 +566,7 @@ export function createTutorialController({
   }
 
   function goNext() {
+    hideStepSkip();
     hideDemoSpeech();
     if (currentStep >= steps.length - 1) {
       playFinale();
@@ -566,6 +602,12 @@ export function createTutorialController({
   }
 
   if (nextBtn) nextBtn.addEventListener('click', goNext);
+  if (stepSkipBtn) {
+    stepSkipBtn.addEventListener('click', () => {
+      if (!active) return;
+      goNext();
+    });
+  }
   if (skipBtn) {
     skipBtn.addEventListener('click', () => {
       hideDemoSpeech();

@@ -410,6 +410,11 @@ export const CONFIG = {
     spotlightPad: 10,
     firstNeedsPercent: 24,
     tutorialBonusBadge: '🎁 Tutorial bonus: первая еда/вода от меня, дальше сам фоткаешь.',
+    /** Обычные шаги ожидания (тап и т.п.) */
+    stepSkipDelayMs: 6000,
+    /** Проблемные шаги (фото-кормление) */
+    stepSkipDelayCriticalMs: 3000,
+    stepSkipLabel: 'Пропустить шаг',
     foodHint: 'тап или свайп',
     dimStrong: 'rgba(0, 0, 0, 0.75)',
     dimLight: 'rgba(0, 0, 0, 0.45)',
@@ -430,19 +435,18 @@ export const CONFIG = {
       },
       {
         id: 'feed_source',
-        targetSelector: '#food-photo-modal .food-photo-pick-actions',
+        targetSelector: '#btn-receipt',
         cardPlacement: 'top',
         text: 'Можно с камеры или из галереи. На Android иногда только галерея — это нормально.',
         examples: [
           { src: 'assets/tutorial/food-fish-example.png', label: 'Пример еды: рыба' },
           { src: 'assets/tutorial/water-example.png', label: 'Пример воды: бутылка' },
         ],
-        action: 'open_photo_modal',
         buttonText: 'Понял',
       },
       {
         id: 'feed_fallback',
-        targetSelector: '#food-photo-modal',
+        targetSelector: '#btn-receipt',
         cardPlacement: 'center',
         dim: 'light',
         text: 'Чтобы не тормозить старт, я уже нашел тебе еду и воду. Но только на этот раз, хозяин.',
@@ -450,7 +454,7 @@ export const CONFIG = {
       },
       {
         id: 'feed_manual_pick',
-        targetSelector: '#food-photo-modal',
+        targetSelector: '#btn-receipt',
         cardPlacement: 'top',
         text: 'Если увидишь экран "Колобок не понял" — просто выбери правильный вариант из списка. Это окей.',
         buttonText: 'Запомнил',
