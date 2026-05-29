@@ -788,18 +788,50 @@ function purgeTutorialChrome() {
     .forEach((el) => el.remove());
 }
 
-/** Блокировка главного UI — только пока туториал реально идёт. */
+function reconcileTutorialChrome() {
+  const html = document.documentElement;
+  const completed = isTutorialCompleted() || html.dataset.tutorialDone === '1';
+  const gameplayLocked =
+    typeof tutorial?.isGameplayLocked === 'function'
+      ? tutorial.isGameplayLocked()
+      : Boolean(tutorial?.isActive?.());
+
+  if (completed) {
+    if (
+      html.classList.contains('is-tutorial-active') ||
+      html.classList.contains('is-food-photo-active')
+    ) {
+      purgeTutorialChrome();
+      restartHomeGameplay();
+    }
+    return;
+  }
+
+  if (!gameplayLocked && html.classList.contains('is-tutorial-active')) {
+    html.classList.remove('is-tutorial-active', 'is-food-photo-active');
+    restartHomeGameplay();
+  }
+}
+
+/** Блокировка главного UI — только пока туториал держит геймплей. */
 function isTutorialUiLocking() {
   if (isTutorialCompleted() || document.documentElement.dataset.tutorialDone === '1') {
     return false;
+  }
+  if (typeof tutorial?.isGameplayLocked === 'function') {
+    return tutorial.isGameplayLocked();
   }
   return Boolean(tutorial?.isActive?.());
 }
 
 function syncTutorialUnlockState() {
+  reconcileTutorialChrome();
   const html = document.documentElement;
   const completed = isTutorialCompleted() || html.dataset.tutorialDone === '1';
-  const running = tutorial?.isActive?.();
+  const gameplayLocked =
+    typeof tutorial?.isGameplayLocked === 'function'
+      ? tutorial.isGameplayLocked()
+      : Boolean(tutorial?.isActive?.());
   const classLocked =
     html.classList.contains('is-tutorial-active') ||
     html.classList.contains('is-food-photo-active') ||
@@ -809,7 +841,7 @@ function syncTutorialUnlockState() {
     markTutorialDoneOnPage();
   }
 
-  if (classLocked && (completed || !running)) {
+  if (classLocked && (completed || !gameplayLocked)) {
     ensureHomeUiUnlocked({ refreshSpeech: false });
   }
 }
@@ -817,7 +849,11 @@ function syncTutorialUnlockState() {
 function guardHomeUiUnlocked() {
   syncTutorialUnlockState();
   const html = document.documentElement;
-  if (tutorial?.isActive?.() && !isTutorialCompleted() && html.dataset.tutorialDone !== '1') {
+  const gameplayLocked =
+    typeof tutorial?.isGameplayLocked === 'function'
+      ? tutorial.isGameplayLocked()
+      : Boolean(tutorial?.isActive?.());
+  if (gameplayLocked && !isTutorialCompleted() && html.dataset.tutorialDone !== '1') {
     return;
   }
   if (
@@ -838,14 +874,26 @@ function isFoodPhotoModalBlocking() {
 /** Сброс залипших оверлеев туториала / фото-корма / флага active. */
 function ensureHomeUiUnlocked({ refreshSpeech = false } = {}) {
   const html = document.documentElement;
-  const running = tutorial?.isActive?.();
+  const sessionRunning = tutorial?.isRunning?.() ?? false;
+  const gameplayLocked =
+    typeof tutorial?.isGameplayLocked === 'function'
+      ? tutorial.isGameplayLocked()
+      : Boolean(tutorial?.isActive?.());
   const done = isTutorialCompleted() || html.dataset.tutorialDone === '1';
 
-  if (running && done) {
+  if (sessionRunning && done) {
     tutorial.forceQuit?.();
   }
 
-  if (running && !done) return;
+  if (sessionRunning && gameplayLocked && !done) return;
+
+  if (sessionRunning && !gameplayLocked) {
+    html.classList.remove('is-tutorial-active', 'is-food-photo-active');
+    foodPhotoFeed?.forceClose?.();
+    restoreFeedDockInteractivity();
+    restartHomeGameplay();
+    return;
+  }
 
   if (done) {
     markTutorialDoneOnPage();
@@ -1775,7 +1823,7 @@ function handleFoodCollect({
     if (sliced) gameState.incrementDailyMission?.('swipe_count', 1);
     homeSpawns?.trySpawnToMax?.(true);
     homeSpawns?.ensureSpawnLoop?.();
-    if (tutorial?.isActive()) {
+    if (isTutorialUiLocking()) {
       tutorial.onFoodCollected();
       return;
     }
@@ -1826,7 +1874,7 @@ function handleFoodCollect({
   currentMood = getMood(stats);
   updateKolobokMood(currentMood);
 
-  if (tutorial?.isActive()) {
+  if (isTutorialUiLocking()) {
     tutorial.onFoodCollected();
     return;
   }
@@ -2128,7 +2176,7 @@ function initFoodPhotoFeed() {
         resumeHomeAfterFeed([]);
         resumeHomeVideo();
         tutorial?.onPhotoFeedCompleted?.();
-        if (tutorial?.isActive?.()) {
+        if (tutorial?.isRunning?.()) {
           const marked = gameState.markTutorialFirstFeedComplete?.();
           if (marked) {
             console.log('metric:tutorial_to_first_feed_complete');
@@ -2485,6 +2533,9 @@ export async function launchGame() {
       onUnlock: () => {
         markTutorialDoneOnPage();
         purgeTutorialChrome();
+      },
+      onGameplayUnlock: () => {
+        restartHomeGameplay();
       },
     });
 

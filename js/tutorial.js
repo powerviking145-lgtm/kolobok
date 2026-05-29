@@ -44,10 +44,15 @@ export function createTutorialController({
   onRequestPhotoFeed,
   onReleaseFoodModal,
   onUnlock,
+  onGameplayUnlock,
 }) {
   const steps = CONFIG.tutorial.steps;
   let currentStep = 0;
   let active = false;
+  /** Блокирует свайпы, кнопки и спавны — отдельно от показа карточек. */
+  let gameplayLocked = false;
+  /** После кормления — только карточки-подсказки, без spotlight и cutout. */
+  let hintsOnly = false;
   let finishing = false;
   let runId = 0;
   let resizeHandler = null;
@@ -406,6 +411,17 @@ export function createTutorialController({
   }
 
   function layoutStepSpotlight(step) {
+    if (hintsOnly) {
+      clearSpotlight();
+      if (step.id === 'speech_example' && step.demoSpeech) {
+        showDemoSpeech(step.demoSpeech);
+      } else {
+        hideDemoSpeech();
+      }
+      positionCard(step);
+      return;
+    }
+
     const dim =
       step.dim === 'light'
         ? CONFIG.tutorial.dimLight || 'rgba(0,0,0,0.45)'
@@ -492,6 +508,7 @@ export function createTutorialController({
 
   function positionCard(step) {
     if (!card) return;
+    card.classList.toggle('tutorial-card--hints-only', hintsOnly);
     const b = overlayBounds();
     const pad = Math.max(12, Math.min(20, b.width * 0.04));
     let placement = step.cardPlacement || 'center';
@@ -517,7 +534,7 @@ export function createTutorialController({
       return;
     }
 
-    if (step.id === 'speech_example') {
+    if (step.id === 'speech_example' || hintsOnly) {
       placement = 'bottom';
       const { w: cardW, h: cardH } = measureCardSize();
       card.classList.remove(
@@ -664,8 +681,25 @@ export function createTutorialController({
   }
 
   function armUnlock() {
+    gameplayLocked = false;
+    hintsOnly = false;
     resetTutorialVisuals();
     onUnlock?.();
+  }
+
+  /** Снимаем блокировку геймплея, карточки туториала могут идти дальше. */
+  function unlockGameplay() {
+    if (!gameplayLocked) return;
+    gameplayLocked = false;
+    hintsOnly = true;
+    clearSpotlight();
+    document.documentElement.classList.remove('is-tutorial-active', 'is-food-photo-active');
+    onReleaseFoodModal?.();
+    try {
+      onGameplayUnlock?.();
+    } catch (err) {
+      console.error('tutorial onGameplayUnlock', err);
+    }
   }
 
   function releaseFoodModalIfNeeded(step) {
@@ -712,6 +746,8 @@ export function createTutorialController({
   function releaseStale() {
     active = false;
     finishing = false;
+    gameplayLocked = false;
+    hintsOnly = false;
     invalidateTutorialTimers();
     hideDemoSpeech();
     onReleaseFoodModal?.();
@@ -835,8 +871,7 @@ export function createTutorialController({
   function onPhotoFeedCompleted() {
     const step = steps[currentStep];
     if (!active || step?.action !== 'wait_for_photo_feed') return;
-    markTutorialDoneOnPage();
-    onReleaseFoodModal?.();
+    unlockGameplay();
     scheduleTutorial(() => goNext(), 450);
   }
 
@@ -863,9 +898,13 @@ export function createTutorialController({
     invalidateTutorialTimers();
     active = false;
     finishing = false;
+    gameplayLocked = false;
+    hintsOnly = false;
     delete document.documentElement.dataset.tutorialDone;
     resetTutorialVisuals();
     active = true;
+    gameplayLocked = true;
+    hintsOnly = false;
     currentStep = 0;
     runId += 1;
     overlay?.classList.remove('tutorial-overlay--off');
@@ -904,7 +943,10 @@ export function createTutorialController({
 
   return {
     start,
-    isActive: () => active,
+    isActive: () => active && gameplayLocked,
+    isGameplayLocked: () => active && gameplayLocked,
+    isRunning: () => active,
+    isHintsOnly: () => hintsOnly,
     releaseStale,
     forceQuit: forceQuitTutorial,
     onFoodCollected,
