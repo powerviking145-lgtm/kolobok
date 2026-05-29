@@ -817,6 +817,9 @@ function reconcileTutorialChrome() {
 
 /** Блокировка главного UI — только пока туториал держит геймплей. */
 function isTutorialUiLocking() {
+  if (typeof tutorial?.isGameplayLocked === 'function' && tutorial.isGameplayLocked()) {
+    return true;
+  }
   if (isTutorialCompleted() || document.documentElement.dataset.tutorialDone === '1') {
     return false;
   }
@@ -882,6 +885,7 @@ function isFoodPhotoModalBlocking() {
  */
 function releaseStuckHomeLocks() {
   if (isFoodPhotoModalBlocking()) return;
+  if (tutorial?.isRunning?.()) return;
   if (isTutorialUiLocking()) return;
   if (runner?.isActive() || purchase?.isActive?.()) return;
   if (shopScreen?.isOpen?.() || roadmapScreen?.isOpen?.()) return;
