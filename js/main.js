@@ -896,7 +896,13 @@ function ensureHomeUiUnlocked({ refreshSpeech = false } = {}) {
     if (!isFoodPhotoModalBlocking()) {
       html.classList.remove('is-food-photo-active');
       restoreFeedDockInteractivity();
-      restartHomeGameplay();
+      homeSpawns?.resetSliceBindings?.();
+      homeSpawns?.topUp?.(true);
+      homeSpawns?.ensureSpawnLoop?.();
+      if (!isSpawnBlocked()) {
+        homeSpawns?.start();
+      }
+      updateShopButton();
     }
     return;
   }
