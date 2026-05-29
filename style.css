@@ -5782,10 +5782,10 @@ html.is-tutorial-active #food-photo-done.tutorial-highlight {
   pointer-events: none !important;
 }
 
-html:not(.is-tutorial-active) #tutorial-overlay,
-html:not(.is-tutorial-active) #tutorial-spotlight,
-html[data-tutorial-done='1'] #tutorial-overlay,
-html[data-tutorial-done='1'] #tutorial-spotlight {
+html:not(.is-tutorial-active):not(.is-bad-food-tip-active) #tutorial-overlay,
+html:not(.is-tutorial-active):not(.is-bad-food-tip-active) #tutorial-spotlight,
+html[data-tutorial-done='1']:not(.is-bad-food-tip-active) #tutorial-overlay,
+html[data-tutorial-done='1']:not(.is-bad-food-tip-active) #tutorial-spotlight {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
