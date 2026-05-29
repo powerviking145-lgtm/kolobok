@@ -829,7 +829,38 @@ function isTutorialUiLocking() {
   return Boolean(tutorial?.isActive?.());
 }
 
+/**
+ * Защита от "полутуториала": подсветка есть, а карточки/оверлей уже пропали.
+ * В таком состоянии безопаснее завершить туториал и разблокировать home.
+ */
+function recoverBrokenTutorialSession() {
+  const html = document.documentElement;
+  if (!tutorial?.isRunning?.()) return false;
+  if (!html.classList.contains('is-tutorial-active')) return false;
+  if (isFoodPhotoModalBlocking()) return false;
+
+  const overlay = document.getElementById('tutorial-overlay');
+  const card = document.getElementById('tutorial-card');
+  const overlayBroken =
+    !overlay ||
+    overlay.hidden ||
+    overlay.classList.contains('tutorial-overlay--off');
+  const cardBroken =
+    !card ||
+    card.hidden ||
+    card.style.display === 'none' ||
+    card.style.visibility === 'hidden';
+
+  if (!overlayBroken && !cardBroken) return false;
+
+  tutorial?.forceQuit?.();
+  ensureHomeUiUnlocked({ refreshSpeech: false });
+  restartHomeGameplay();
+  return true;
+}
+
 function syncTutorialUnlockState() {
+  if (recoverBrokenTutorialSession()) return;
   reconcileTutorialChrome();
   if (isFoodPhotoModalBlocking()) return;
   releaseStuckHomeLocks();
