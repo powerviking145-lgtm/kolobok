@@ -428,6 +428,7 @@ export function normalizeState(raw = {}) {
     feedHistory: [],
     dailyMissions: defaultDailyMissions(),
     tutorialMetrics: defaultTutorialMetrics(),
+    tutorialCompleted: false,
     cloud: {
       telegramId: null,
       telegramUsername: null,
@@ -485,6 +486,7 @@ export function normalizeState(raw = {}) {
     ...defaultTutorialMetrics(),
     ...(raw.tutorialMetrics && typeof raw.tutorialMetrics === 'object' ? raw.tutorialMetrics : {}),
   };
+  merged.tutorialCompleted = !!raw.tutorialCompleted;
 
   return merged;
 }
@@ -519,6 +521,7 @@ function flattenForUi(src = state) {
       src.tutorialMetrics && typeof src.tutorialMetrics === 'object'
         ? { ...defaultTutorialMetrics(), ...src.tutorialMetrics }
         : defaultTutorialMetrics(),
+    tutorialCompleted: !!src.tutorialCompleted,
   };
 
   STAT_KEYS.forEach((key) => {
@@ -1217,6 +1220,7 @@ export const gameState = {
       bestDistance: Math.max(raw.bestDistance ?? 0, cloud.bestDistance ?? 0),
       bestScore: Math.max(raw.bestScore ?? 0, cloud.bestScore ?? 0),
       tutorialMetrics: cloud.tutorialMetrics ?? raw.tutorialMetrics,
+      tutorialCompleted: cloud.tutorialCompleted ?? raw.tutorialCompleted,
       kolobokName: cloud.kolobokName ?? raw.kolobokName,
       pvpWins: cloud.pvpWins ?? raw.pvpWins,
       pvpLosses: cloud.pvpLosses ?? raw.pvpLosses,
@@ -1246,7 +1250,19 @@ export const gameState = {
       bestDistance: raw.bestDistance ?? 0,
       bestScore: raw.bestScore ?? 0,
       tutorialMetrics: raw.tutorialMetrics ?? defaultTutorialMetrics(),
+      tutorialCompleted: !!raw.tutorialCompleted,
       saveVersion: CONFIG.saveVersion,
     };
+  },
+
+  getTutorialCompleted() {
+    return !!state.tutorialCompleted;
+  },
+
+  setTutorialCompleted(value = true) {
+    const next = !!value;
+    if (!!state.tutorialCompleted === next) return;
+    state.tutorialCompleted = next;
+    emitChange();
   },
 };

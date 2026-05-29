@@ -116,6 +116,7 @@ let criticalWarnTimerId = null;
 let lastCriticalWarnAt = 0;
 let deathFlowActive = false;
 let tutorialAutoFeedUsed = false;
+let tutorialAutoFeedAllowed = true;
 const TAP_EMOJIS = ['😄', '😋', '🥰', '😎', '❤️'];
 const homeVideo = {
   active: null,
@@ -327,7 +328,7 @@ async function handleResetProgress(closeMenuSheet) {
 
   await runOnboardingIfNeeded();
 
-  if (!isTutorialCompleted()) {
+  if (!hasTutorialCompletion()) {
     pauseGameTimers();
     homeSpawns?.stop();
     tutorial?.start();
@@ -372,7 +373,7 @@ async function rebakeKolobokAfterDeath() {
 
     await runOnboardingIfNeeded();
 
-    if (!isTutorialCompleted()) {
+    if (!hasTutorialCompletion()) {
       prepareFirstTutorialNeeds();
       pauseGameTimers();
       homeSpawns?.stop();
@@ -792,7 +793,7 @@ function reconcileTutorialChrome() {
   const html = document.documentElement;
   if (isFoodPhotoModalBlocking()) return;
 
-  const completed = isTutorialCompleted() || html.dataset.tutorialDone === '1';
+  const completed = hasTutorialCompletion();
   const gameplayLocked =
     typeof tutorial?.isGameplayLocked === 'function'
       ? tutorial.isGameplayLocked()
@@ -816,11 +817,19 @@ function reconcileTutorialChrome() {
 }
 
 /** Блокировка главного UI — только пока туториал держит геймплей. */
+function hasTutorialCompletion() {
+  return (
+    isTutorialCompleted() ||
+    document.documentElement.dataset.tutorialDone === '1' ||
+    gameState.getTutorialCompleted?.()
+  );
+}
+
 function isTutorialUiLocking() {
   if (typeof tutorial?.isGameplayLocked === 'function' && tutorial.isGameplayLocked()) {
     return true;
   }
-  if (isTutorialCompleted() || document.documentElement.dataset.tutorialDone === '1') {
+  if (hasTutorialCompletion()) {
     return false;
   }
   if (typeof tutorial?.isGameplayLocked === 'function') {
@@ -866,7 +875,7 @@ function syncTutorialUnlockState() {
   releaseStuckHomeLocks();
 
   const html = document.documentElement;
-  const completed = isTutorialCompleted() || html.dataset.tutorialDone === '1';
+  const completed = hasTutorialCompletion();
   const gameplayLocked =
     typeof tutorial?.isGameplayLocked === 'function'
       ? tutorial.isGameplayLocked()
@@ -893,7 +902,7 @@ function guardHomeUiUnlocked() {
     typeof tutorial?.isGameplayLocked === 'function'
       ? tutorial.isGameplayLocked()
       : Boolean(tutorial?.isActive?.());
-  if (gameplayLocked && !isTutorialCompleted() && html.dataset.tutorialDone !== '1') {
+  if (gameplayLocked && !hasTutorialCompletion()) {
     return;
   }
   if (
@@ -940,7 +949,7 @@ function ensureHomeUiUnlocked({ refreshSpeech = false } = {}) {
     typeof tutorial?.isGameplayLocked === 'function'
       ? tutorial.isGameplayLocked()
       : Boolean(tutorial?.isActive?.());
-  const done = isTutorialCompleted() || html.dataset.tutorialDone === '1';
+  const done = hasTutorialCompletion();
 
   if (sessionRunning && done) {
     tutorial.forceQuit?.();
@@ -2567,6 +2576,7 @@ export async function launchGame() {
       replySystem,
       onStart: () => {
         tutorialAutoFeedUsed = false;
+        tutorialAutoFeedAllowed = !gameState.getTutorialCompleted?.();
         resumeHomeVideo();
       },
       onReleaseFoodModal: () => foodPhotoFeed?.close?.(),
@@ -2591,6 +2601,10 @@ export async function launchGame() {
         if (step?.id === 'feed_wait') {
           if (tutorialAutoFeedUsed) return;
           tutorialAutoFeedUsed = true;
+          if (!tutorialAutoFeedAllowed) {
+            foodPhotoFeed?.open?.();
+            return;
+          }
           foodPhotoFeed?.openTutorialPreset?.({
             foodId: 'water',
             customComment:
@@ -2602,6 +2616,7 @@ export async function launchGame() {
       onFoodTapped: () => {},
       onUnlock: () => {
         markTutorialDoneOnPage();
+        gameState.setTutorialCompleted?.(true);
         purgeTutorialChrome();
       },
       onGameplayUnlock: () => {
@@ -2703,7 +2718,7 @@ export async function launchGame() {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible') return;
       syncTutorialUnlockState();
-      if (!isTutorialCompleted() || isTutorialUiLocking()) return;
+      if (!hasTutorialCompletion() || isTutorialUiLocking()) return;
       restartHomeGameplay();
     });
 
@@ -2724,13 +2739,14 @@ export async function launchGame() {
 
     await runCloudOnboardingGateCapped();
 
-    if (!isTutorialCompleted()) {
+    if (!hasTutorialCompletion()) {
       pauseGameTimers();
       homeSpawns?.stop();
       tutorial?.start();
       resumeHomeVideo();
     } else {
       markTutorialDoneOnPage();
+      gameState.setTutorialCompleted?.(true);
       activateHomeScreen();
       restartHomeGameplay();
       [0, 120, 500, 2000].forEach((ms) => {
