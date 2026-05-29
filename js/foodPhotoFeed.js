@@ -537,6 +537,10 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       fileInput.value = '';
       if (file) onFileSelected(file);
     });
+
+    fileInput?.addEventListener('cancel', () => {
+      if (active) showState('pick');
+    });
   }
 
   bind();

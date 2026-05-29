@@ -763,7 +763,7 @@ function purgeTutorialChrome() {
     modal.setAttribute('aria-hidden', 'true');
     modal.classList.remove('is-open');
   }
-  foodPhotoFeed?.forceClose?.();
+  foodPhotoFeed?.close?.();
 
   document.getElementById('footer-buttons')?.classList.remove('is-hidden');
   ui.footer?.classList.remove('is-hidden');
@@ -790,6 +790,8 @@ function purgeTutorialChrome() {
 
 function reconcileTutorialChrome() {
   const html = document.documentElement;
+  if (isFoodPhotoModalBlocking()) return;
+
   const completed = isTutorialCompleted() || html.dataset.tutorialDone === '1';
   const gameplayLocked =
     typeof tutorial?.isGameplayLocked === 'function'
@@ -826,6 +828,8 @@ function isTutorialUiLocking() {
 
 function syncTutorialUnlockState() {
   reconcileTutorialChrome();
+  if (isFoodPhotoModalBlocking()) return;
+
   const html = document.documentElement;
   const completed = isTutorialCompleted() || html.dataset.tutorialDone === '1';
   const gameplayLocked =
@@ -834,8 +838,7 @@ function syncTutorialUnlockState() {
       : Boolean(tutorial?.isActive?.());
   const classLocked =
     html.classList.contains('is-tutorial-active') ||
-    html.classList.contains('is-food-photo-active') ||
-    isFoodPhotoModalBlocking();
+    html.classList.contains('is-food-photo-active');
 
   if (completed) {
     markTutorialDoneOnPage();
@@ -848,6 +851,8 @@ function syncTutorialUnlockState() {
 
 function guardHomeUiUnlocked() {
   syncTutorialUnlockState();
+  if (isFoodPhotoModalBlocking()) return;
+
   const html = document.documentElement;
   const gameplayLocked =
     typeof tutorial?.isGameplayLocked === 'function'
@@ -858,8 +863,7 @@ function guardHomeUiUnlocked() {
   }
   if (
     html.classList.contains('is-tutorial-active') ||
-    html.classList.contains('is-food-photo-active') ||
-    isFoodPhotoModalBlocking()
+    html.classList.contains('is-food-photo-active')
   ) {
     ensureHomeUiUnlocked({ refreshSpeech: false });
     restartHomeGameplay();
@@ -888,10 +892,12 @@ function ensureHomeUiUnlocked({ refreshSpeech = false } = {}) {
   if (sessionRunning && gameplayLocked && !done) return;
 
   if (sessionRunning && !gameplayLocked) {
-    html.classList.remove('is-tutorial-active', 'is-food-photo-active');
-    foodPhotoFeed?.forceClose?.();
-    restoreFeedDockInteractivity();
-    restartHomeGameplay();
+    html.classList.remove('is-tutorial-active');
+    if (!isFoodPhotoModalBlocking()) {
+      html.classList.remove('is-food-photo-active');
+      restoreFeedDockInteractivity();
+      restartHomeGameplay();
+    }
     return;
   }
 
@@ -901,7 +907,7 @@ function ensureHomeUiUnlocked({ refreshSpeech = false } = {}) {
 
   purgeTutorialChrome();
   restoreFeedDockInteractivity();
-  foodPhotoFeed?.forceClose?.();
+  foodPhotoFeed?.close?.();
   purchase?.forceReset?.();
   clearPurchaseOverlayState();
   syncPurchaseStuckState();
@@ -2148,6 +2154,7 @@ function initFoodPhotoFeed() {
   foodPhotoFeed = createFoodPhotoFeed({
     callbacks: {
       onStart: () => {
+        tutorial?.suspendHints?.();
         pauseGameTimers();
         homeSpawns?.stop();
         replySystem?.hideAll();
@@ -2191,6 +2198,7 @@ function initFoodPhotoFeed() {
         });
       },
       onClose: () => {
+        tutorial?.resumeHints?.();
         restoreFeedDockInteractivity();
         if (!isTutorialUiLocking()) {
           ensureHomeUiUnlocked();
@@ -2499,7 +2507,7 @@ export async function launchGame() {
         tutorialAutoFeedUsed = false;
         resumeHomeVideo();
       },
-      onReleaseFoodModal: () => foodPhotoFeed?.forceClose?.(),
+      onReleaseFoodModal: () => foodPhotoFeed?.close?.(),
       onComplete: () => {
         shopUpgradeHint?.hide();
         restoreHomeIdleState();

@@ -687,6 +687,24 @@ export function createTutorialController({
     onUnlock?.();
   }
 
+  function suspendHints() {
+    if (!active || !hintsOnly) return;
+    overlay?.setAttribute('hidden', '');
+    overlay?.classList.add('tutorial-overlay--off');
+    card?.setAttribute('hidden', '');
+  }
+
+  function resumeHints() {
+    if (!active || !hintsOnly) return;
+    overlay?.classList.remove('tutorial-overlay--off');
+    overlay?.removeAttribute('hidden');
+    card?.removeAttribute('hidden');
+    if (card) {
+      card.style.display = 'block';
+      card.style.visibility = 'visible';
+    }
+  }
+
   /** Снимаем блокировку геймплея, карточки туториала могут идти дальше. */
   function unlockGameplay() {
     if (!gameplayLocked) return;
@@ -947,6 +965,8 @@ export function createTutorialController({
     isGameplayLocked: () => active && gameplayLocked,
     isRunning: () => active,
     isHintsOnly: () => hintsOnly,
+    suspendHints,
+    resumeHints,
     releaseStale,
     forceQuit: forceQuitTutorial,
     onFoodCollected,
