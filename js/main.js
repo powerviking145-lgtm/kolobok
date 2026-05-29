@@ -829,6 +829,7 @@ function isTutorialUiLocking() {
 function syncTutorialUnlockState() {
   reconcileTutorialChrome();
   if (isFoodPhotoModalBlocking()) return;
+  releaseStuckHomeLocks();
 
   const html = document.documentElement;
   const completed = isTutorialCompleted() || html.dataset.tutorialDone === '1';
@@ -873,6 +874,27 @@ function guardHomeUiUnlocked() {
 function isFoodPhotoModalBlocking() {
   const modal = document.getElementById('food-photo-modal');
   return Boolean(modal && !modal.hidden && modal.classList.contains('is-open'));
+}
+
+/**
+ * Аварийный сброс: если туториал уже не блокирует игру,
+ * но на html остались классы-блокировки, снимаем их.
+ */
+function releaseStuckHomeLocks() {
+  if (isFoodPhotoModalBlocking()) return;
+  if (isTutorialUiLocking()) return;
+  if (runner?.isActive() || purchase?.isActive?.()) return;
+  if (shopScreen?.isOpen?.() || roadmapScreen?.isOpen?.()) return;
+
+  badFoodTip?.dismiss?.();
+  shopUpgradeHint?.hide?.();
+  restoreFeedDockInteractivity();
+  document.documentElement.classList.remove(
+    'is-tutorial-active',
+    'is-food-photo-active',
+    'is-bad-food-tip-active',
+    'is-shop-hint-active'
+  );
 }
 
 /** Сброс залипших оверлеев туториала / фото-корма / флага active. */
@@ -1589,7 +1611,6 @@ function isHomeBlocked() {
     kolobokLecture?.isActive() ||
     isTutorialUiLocking() ||
     badFoodTip?.isActive() ||
-    shopUpgradeHint?.isActive() ||
     roadmapScreen?.isOpen()
   );
 }

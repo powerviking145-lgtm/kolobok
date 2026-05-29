@@ -2719,7 +2719,7 @@ html.is-shop-hint-active #footer-buttons .btn,
 html.is-shop-hint-active #btn-menu,
 html.is-shop-hint-active #btn-exit,
 html.is-shop-hint-active #btn-tutorial {
-  pointer-events: none !important;
+  pointer-events: auto !important;
 }
 
 html.is-shop-hint-active #btn-shop.shop-hint-highlight {
