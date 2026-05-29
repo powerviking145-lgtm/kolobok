@@ -10,6 +10,16 @@ export function isTutorialCompleted() {
 
 export function resetTutorialFlag() {
   localStorage.removeItem(STORAGE_KEY);
+  delete document.documentElement.dataset.tutorialDone;
+}
+
+export function markTutorialDoneOnPage() {
+  document.documentElement.dataset.tutorialDone = '1';
+  try {
+    localStorage.setItem(STORAGE_KEY, 'true');
+  } catch {
+    /* ignore */
+  }
 }
 
 export function createTutorialController({
@@ -39,9 +49,23 @@ export function createTutorialController({
   let currentStep = 0;
   let active = false;
   let finishing = false;
+  let runId = 0;
   let resizeHandler = null;
   let spotlightTarget = null;
   let stepSkipTimerId = null;
+
+  function scheduleTutorial(fn, delayMs = 0) {
+    const token = runId;
+    return window.setTimeout(() => {
+      if (token !== runId || !active) return;
+      fn();
+    }, delayMs);
+  }
+
+  function invalidateTutorialTimers() {
+    runId += 1;
+    hideStepSkip();
+  }
 
   function hideStepSkip() {
     if (stepSkipTimerId) {
@@ -68,8 +92,9 @@ export function createTutorialController({
         ? (CONFIG.tutorial?.stepSkipDelayCriticalMs ?? 3000)
         : (CONFIG.tutorial?.stepSkipDelayMs ?? 6000)
     );
+    const token = runId;
     stepSkipTimerId = window.setTimeout(() => {
-      if (!active) return;
+      if (token !== runId || !active) return;
       stepSkipBtn.removeAttribute('hidden');
       stepSkipBtn.style.display = '';
     }, delay);
@@ -301,9 +326,9 @@ export function createTutorialController({
         : CONFIG.tutorial.dimStrong || 'rgba(0,0,0,0.75)';
     clearSpotlight();
     const btn = document.getElementById('food-photo-done');
-    if (!btn || btn.hidden || !btn.offsetParent) {
-      if (attempt < 30) {
-        window.setTimeout(() => layoutFeedDoneSpotlight(step, attempt + 1), 50);
+    if (!active || !btn || btn.hidden || !btn.offsetParent) {
+      if (active && attempt < 30) {
+        scheduleTutorial(() => layoutFeedDoneSpotlight(step, attempt + 1), 50);
       }
       return;
     }
@@ -364,9 +389,9 @@ export function createTutorialController({
     const choices =
       document.getElementById('food-photo-choices') ||
       document.querySelector('.food-photo-choices');
-    if (!choices || !choices.offsetParent) {
-      if (attempt < 30) {
-        window.setTimeout(() => layoutConfirmChoicesSpotlight(step, attempt + 1), 50);
+    if (!active || !choices || !choices.offsetParent) {
+      if (active && attempt < 30) {
+        scheduleTutorial(() => layoutConfirmChoicesSpotlight(step, attempt + 1), 50);
       }
       return;
     }
@@ -655,27 +680,55 @@ export function createTutorialController({
 
   /** Сразу снимаем блокировку UI — без отложенного finalize. */
   function completeTutorialNow() {
-    if (finishing) return;
+    markTutorialDoneOnPage();
+    if (finishing) {
+      armUnlock();
+      try {
+        onComplete?.();
+      } catch (err) {
+        console.error('tutorial onComplete', err);
+      }
+      return;
+    }
     finishing = true;
     active = false;
-    hideStepSkip();
-    hideDemoSpeech();
-    onReleaseFoodModal?.();
-    if (resizeHandler) {
-      window.removeEventListener('resize', resizeHandler);
-      resizeHandler = null;
+    invalidateTutorialTimers();
+    try {
+      hideDemoSpeech();
+      onReleaseFoodModal?.();
+      if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler);
+        resizeHandler = null;
+      }
+      onComplete?.();
+    } catch (err) {
+      console.error('tutorial complete', err);
+    } finally {
+      armUnlock();
+      markTutorialDoneOnPage();
     }
-    localStorage.setItem(STORAGE_KEY, 'true');
-    armUnlock();
-    onComplete?.();
   }
 
   function releaseStale() {
     active = false;
     finishing = false;
-    hideStepSkip();
+    invalidateTutorialTimers();
     hideDemoSpeech();
     onReleaseFoodModal?.();
+    armUnlock();
+  }
+
+  function forceQuitTutorial() {
+    invalidateTutorialTimers();
+    finishing = false;
+    active = false;
+    if (resizeHandler) {
+      window.removeEventListener('resize', resizeHandler);
+      resizeHandler = null;
+    }
+    hideDemoSpeech();
+    onReleaseFoodModal?.();
+    markTutorialDoneOnPage();
     armUnlock();
   }
 
@@ -703,7 +756,7 @@ export function createTutorialController({
       el.style.setProperty('--fw-x', `${dx}px`);
       el.style.setProperty('--fw-y', `${dy}px`);
       (overlay || document.body).appendChild(el);
-      window.setTimeout(() => el.remove(), 1200);
+      scheduleTutorial(() => el.remove(), 1200);
     });
   }
 
@@ -750,11 +803,11 @@ export function createTutorialController({
     }
 
     if (confirmDemo) {
-      window.setTimeout(() => onRequestPhotoFeed?.(step), 80);
+      scheduleTutorial(() => onRequestPhotoFeed?.(step), 80);
     }
 
     if (waitPhotoFeed) {
-      window.setTimeout(() => {
+      scheduleTutorial(() => {
         onRequestPhotoFeed?.(step);
         window.requestAnimationFrame(() => {
           window.requestAnimationFrame(() => layoutStepSpotlight(step));
@@ -768,7 +821,7 @@ export function createTutorialController({
     });
 
     if (step.action === 'open_photo_modal') {
-      window.setTimeout(() => onRequestPhotoFeed?.(step), 120);
+      scheduleTutorial(() => onRequestPhotoFeed?.(step), 120);
     }
   }
 
@@ -776,14 +829,15 @@ export function createTutorialController({
     const step = steps[currentStep];
     if (!active || step?.action !== 'wait_for_tap') return;
     onFoodTapped?.();
-    window.setTimeout(() => goNext(), 450);
+    scheduleTutorial(() => goNext(), 450);
   }
 
   function onPhotoFeedCompleted() {
     const step = steps[currentStep];
     if (!active || step?.action !== 'wait_for_photo_feed') return;
+    markTutorialDoneOnPage();
     onReleaseFoodModal?.();
-    window.setTimeout(() => goNext(), 450);
+    scheduleTutorial(() => goNext(), 450);
   }
 
   function goNext() {
@@ -791,6 +845,7 @@ export function createTutorialController({
     hideStepSkip();
     hideDemoSpeech();
     if (currentStep >= steps.length - 1) {
+      markTutorialDoneOnPage();
       playFinale();
       completeTutorialNow();
       return;
@@ -805,11 +860,14 @@ export function createTutorialController({
       window.removeEventListener('resize', resizeHandler);
       resizeHandler = null;
     }
+    invalidateTutorialTimers();
     active = false;
     finishing = false;
+    delete document.documentElement.dataset.tutorialDone;
     resetTutorialVisuals();
     active = true;
     currentStep = 0;
+    runId += 1;
     overlay?.classList.remove('tutorial-overlay--off');
     overlay?.removeAttribute('hidden');
     overlay?.setAttribute('aria-hidden', 'false');
@@ -838,6 +896,7 @@ export function createTutorialController({
       if (!active) return;
       hideDemoSpeech();
       onReleaseFoodModal?.();
+      markTutorialDoneOnPage();
       playFinale();
       completeTutorialNow();
     });
@@ -847,6 +906,7 @@ export function createTutorialController({
     start,
     isActive: () => active,
     releaseStale,
+    forceQuit: forceQuitTutorial,
     onFoodCollected,
     onPhotoFeedCompleted,
     skip: completeTutorialNow,

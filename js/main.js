@@ -49,7 +49,12 @@ import {
   initHomeParticles,
 } from './homeUi.js';
 import { createReplySystem } from './replySystem.js';
-import { createTutorialController, isTutorialCompleted, resetTutorialFlag } from './tutorial.js';
+import {
+  createTutorialController,
+  isTutorialCompleted,
+  markTutorialDoneOnPage,
+  resetTutorialFlag,
+} from './tutorial.js';
 import { initTelegram, isTelegramMiniApp, waitForTelegramUser, canUseCloudSync } from './telegram.js';
 import { pullProfile, startCloudSync, flushCloudSync, markCloudDirty, wipeCloudProfile } from './cloudSync.js';
 import { runOnboardingIfNeeded } from './onboarding.js';
@@ -429,6 +434,7 @@ function initTopPanelChrome() {
   const exitText = document.getElementById('exit-modal-text');
 
   function openMenuSheet() {
+    guardHomeUiUnlocked();
     if (!menuSheet) return;
     menuSheet.removeAttribute('hidden');
     menuSheet.setAttribute('aria-hidden', 'false');
@@ -443,6 +449,7 @@ function initTopPanelChrome() {
   }
 
   function openExitModal() {
+    guardHomeUiUnlocked();
     if (!exitModal) return;
     if (exitTitle && tp.exit?.title) exitTitle.textContent = tp.exit.title;
     if (exitText && tp.exit?.text) {
@@ -781,9 +788,46 @@ function purgeTutorialChrome() {
     .forEach((el) => el.remove());
 }
 
-/** Блокировка главного UI — только по классу на html (не по залипшему active). */
+/** Блокировка главного UI — только пока туториал реально идёт. */
 function isTutorialUiLocking() {
-  return document.documentElement.classList.contains('is-tutorial-active');
+  if (isTutorialCompleted() || document.documentElement.dataset.tutorialDone === '1') {
+    return false;
+  }
+  return Boolean(tutorial?.isActive?.());
+}
+
+function syncTutorialUnlockState() {
+  const html = document.documentElement;
+  const completed = isTutorialCompleted() || html.dataset.tutorialDone === '1';
+  const running = tutorial?.isActive?.();
+  const classLocked =
+    html.classList.contains('is-tutorial-active') ||
+    html.classList.contains('is-food-photo-active') ||
+    isFoodPhotoModalBlocking();
+
+  if (completed) {
+    markTutorialDoneOnPage();
+  }
+
+  if (classLocked && (completed || !running)) {
+    ensureHomeUiUnlocked({ refreshSpeech: false });
+  }
+}
+
+function guardHomeUiUnlocked() {
+  syncTutorialUnlockState();
+  const html = document.documentElement;
+  if (tutorial?.isActive?.() && !isTutorialCompleted() && html.dataset.tutorialDone !== '1') {
+    return;
+  }
+  if (
+    html.classList.contains('is-tutorial-active') ||
+    html.classList.contains('is-food-photo-active') ||
+    isFoodPhotoModalBlocking()
+  ) {
+    ensureHomeUiUnlocked({ refreshSpeech: false });
+    restartHomeGameplay();
+  }
 }
 
 function isFoodPhotoModalBlocking() {
@@ -793,10 +837,19 @@ function isFoodPhotoModalBlocking() {
 
 /** Сброс залипших оверлеев туториала / фото-корма / флага active. */
 function ensureHomeUiUnlocked({ refreshSpeech = false } = {}) {
-  if (tutorial?.isActive?.() && !isTutorialUiLocking()) {
-    tutorial.releaseStale?.();
+  const html = document.documentElement;
+  const running = tutorial?.isActive?.();
+  const done = isTutorialCompleted() || html.dataset.tutorialDone === '1';
+
+  if (running && done) {
+    tutorial.forceQuit?.();
   }
-  if (isTutorialUiLocking()) return;
+
+  if (running && !done) return;
+
+  if (done) {
+    markTutorialDoneOnPage();
+  }
 
   purgeTutorialChrome();
   restoreFeedDockInteractivity();
@@ -1843,7 +1896,10 @@ function performStageTap(clientX, clientY) {
 function bindEvents() {
   eventBus.on('state:changed', onStateChanged);
 
+  const guardClick = () => guardHomeUiUnlocked();
+
   ui.btnReceipt.addEventListener('click', () => {
+    guardClick();
     vibrateTap();
     if (isFeedFlowOnScreen() || runner?.isActive() || isTutorialUiLocking()) return;
 
@@ -1878,11 +1934,13 @@ function bindEvents() {
   ui.btnShop?.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    guardClick();
     vibrateTap();
     openShopScreen();
   });
 
   ui.btnRun.addEventListener('click', () => {
+    guardClick();
     vibrateTap();
     if (isHomeBlocked()) return;
     const stats = gameState.get();
@@ -2424,7 +2482,10 @@ export async function launchGame() {
       },
       onSpawnTutorialFood: () => homeSpawns?.spawnTutorialFood(),
       onFoodTapped: () => {},
-      onUnlock: () => purgeTutorialChrome(),
+      onUnlock: () => {
+        markTutorialDoneOnPage();
+        purgeTutorialChrome();
+      },
     });
 
     document.getElementById('btn-tutorial')?.addEventListener('click', (e) => {
@@ -2520,9 +2581,18 @@ export async function launchGame() {
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'visible') return;
+      syncTutorialUnlockState();
       if (!isTutorialCompleted() || isTutorialUiLocking()) return;
       restartHomeGameplay();
     });
+
+    document.addEventListener(
+      'pointerdown',
+      () => {
+        syncTutorialUnlockState();
+      },
+      true
+    );
 
     purgeTutorialChrome();
     ensureHomeDockVisible();
@@ -2539,7 +2609,12 @@ export async function launchGame() {
       tutorial?.start();
       resumeHomeVideo();
     } else {
+      markTutorialDoneOnPage();
       activateHomeScreen();
+      restartHomeGameplay();
+      [0, 120, 500, 2000].forEach((ms) => {
+        window.setTimeout(() => restartHomeGameplay(), ms);
+      });
     }
 
     const offlineToast = buildOfflineDecayToast(offlineDecayReport);

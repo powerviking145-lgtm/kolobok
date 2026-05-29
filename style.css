@@ -3117,8 +3117,8 @@ html.is-onboarding-active .tutorial-overlay {
   font-size: 0;
 }
 
-html.is-food-photo-active #home-spawns,
-html.is-food-photo-active #footer-buttons {
+html.is-food-photo-active:not([data-tutorial-done='1']) #home-spawns,
+html.is-food-photo-active:not([data-tutorial-done='1']) #footer-buttons {
   pointer-events: none;
 }
 
@@ -5783,10 +5783,24 @@ html.is-tutorial-active #food-photo-done.tutorial-highlight {
 }
 
 html:not(.is-tutorial-active) #tutorial-overlay,
-html:not(.is-tutorial-active) #tutorial-spotlight {
+html:not(.is-tutorial-active) #tutorial-spotlight,
+html[data-tutorial-done='1'] #tutorial-overlay,
+html[data-tutorial-done='1'] #tutorial-spotlight {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
+}
+
+html[data-tutorial-done='1'] .home-ui .actions,
+html[data-tutorial-done='1'] .home-ui .top-panel__stats,
+html[data-tutorial-done='1'] #btn-menu,
+html[data-tutorial-done='1'] #btn-exit {
+  pointer-events: auto !important;
+}
+
+html[data-tutorial-done='1'] #btn-menu,
+html[data-tutorial-done='1'] #btn-exit {
+  opacity: 1 !important;
 }
 
 html:not(.is-tutorial-active) .home-spawns {
@@ -6004,27 +6018,27 @@ html:not(.is-tutorial-active) .home-spawn:not(.tutorial-food) {
   }
 }
 
-html.is-tutorial-active .home-ui .actions {
+html.is-tutorial-active:not([data-tutorial-done='1']) .home-ui .actions {
   pointer-events: none;
 }
 
-html.is-tutorial-active #btn-receipt.tutorial-cutout,
-html.is-tutorial-active #btn-run.tutorial-cutout {
+html.is-tutorial-active:not([data-tutorial-done='1']) #btn-receipt.tutorial-cutout,
+html.is-tutorial-active:not([data-tutorial-done='1']) #btn-run.tutorial-cutout {
   pointer-events: auto !important;
 }
 
-html.is-tutorial-active .home-ui .top-panel__stats {
+html.is-tutorial-active:not([data-tutorial-done='1']) .home-ui .top-panel__stats {
   pointer-events: none;
 }
 
-html.is-tutorial-active #btn-tutorial {
+html.is-tutorial-active:not([data-tutorial-done='1']) #btn-tutorial {
   pointer-events: auto;
   position: relative;
   z-index: 920;
 }
 
-html.is-tutorial-active #btn-menu,
-html.is-tutorial-active #btn-exit {
+html.is-tutorial-active:not([data-tutorial-done='1']) #btn-menu,
+html.is-tutorial-active:not([data-tutorial-done='1']) #btn-exit {
   pointer-events: none;
   opacity: 0.35;
 }
