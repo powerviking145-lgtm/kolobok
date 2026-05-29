@@ -2617,6 +2617,9 @@ export async function launchGame() {
       onUnlock: () => {
         markTutorialDoneOnPage();
         gameState.setTutorialCompleted?.(true);
+        gameState.save();
+        markCloudDirty();
+        flushCloudSync().catch(() => {});
         purgeTutorialChrome();
       },
       onGameplayUnlock: () => {
@@ -2738,6 +2741,11 @@ export async function launchGame() {
     resumeHomeVideo();
 
     await runCloudOnboardingGateCapped();
+
+    // Если облако подтянулось медленно, делаем ещё одну проверку перед автозапуском туториала.
+    if (!hasTutorialCompletion() && canUseCloudSync()) {
+      await pullProfile().catch(() => {});
+    }
 
     if (!hasTutorialCompletion()) {
       pauseGameTimers();
