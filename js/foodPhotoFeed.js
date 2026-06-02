@@ -249,7 +249,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     options.forEach((food) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'food-photo-choice btn btn--secondary';
+      btn.className = 'food-photo-choice btn btn--primary tutorial-card__next';
       btn.textContent = `${food.emoji} ${food.name}`;
       btn.addEventListener('click', () => onPick(food));
       choicesEl.appendChild(btn);
@@ -409,8 +409,12 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
 
     const options = buildPickOptions(result.food);
     if (confirmHint) {
-      confirmHint.textContent =
-        cfg().confirmLowConfidenceHint ?? cfg().pickHint ?? 'Колобок не уверен, выбери вариант ниже.';
+      const hintText =
+        cfg().confirmLowConfidenceHint ??
+        cfg().pickHint ??
+        'Выбери вариант ниже';
+      confirmHint.textContent = hintText;
+      confirmHint.hidden = !hintText;
     }
     renderChoices(options, (picked) => {
       showResult(picked, {

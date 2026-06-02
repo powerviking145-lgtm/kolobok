@@ -263,41 +263,41 @@
 
       <input type="file" id="receipt-scan-file" accept="image/*" hidden aria-hidden="true">
       <div class="receipt-scan-modal food-photo-modal" id="food-photo-modal" hidden aria-hidden="true">
-        <div class="receipt-scan-modal__backdrop" id="food-photo-backdrop"></div>
-        <div class="receipt-scan-modal__card" role="dialog" aria-modal="true" aria-labelledby="food-photo-title">
-          <button type="button" class="receipt-scan-modal__close" id="food-photo-close" aria-label="Закрыть">✕</button>
-          <h2 class="receipt-scan-modal__title" id="food-photo-title">Сфоткай еду</h2>
+        <div class="receipt-scan-modal__backdrop food-photo-modal__backdrop" id="food-photo-backdrop"></div>
+        <div class="receipt-scan-modal__card food-photo-card" role="dialog" aria-modal="true" aria-labelledby="food-photo-title">
+          <button type="button" class="receipt-scan-modal__close food-photo-card__close" id="food-photo-close" aria-label="Закрыть">✕</button>
+          <h2 class="receipt-scan-modal__title food-photo-card__title" id="food-photo-title">Сфоткай еду</h2>
           <img class="food-photo-preview" id="food-photo-preview-img" alt="" hidden decoding="async" />
 
           <div class="receipt-scan-modal__state" data-food-photo-state="pick">
-            <p class="receipt-scan-modal__pick-text">Сфоткай тарелку или продукт — колобок прокомментирует и поест.</p>
+            <p class="tutorial-card__text food-photo-card__text">Сфоткай тарелку или продукт.</p>
             <div class="receipt-scan-modal__pick-actions food-photo-pick-actions">
-              <button type="button" class="btn btn--primary" id="food-photo-camera-btn">📸 Снять</button>
-              <button type="button" class="btn btn--secondary" id="food-photo-gallery-btn">🖼 Из галереи</button>
+              <button type="button" class="btn btn--primary tutorial-card__next" id="food-photo-camera-btn">📸 Снять</button>
+              <button type="button" class="btn btn--secondary food-photo-card__btn-alt" id="food-photo-gallery-btn">🖼 Из галереи</button>
               <input type="file" id="food-photo-file" accept="image/*" hidden aria-hidden="true" />
             </div>
           </div>
 
           <div class="receipt-scan-modal__state" data-food-photo-state="loading" hidden>
-            <p class="receipt-scan-modal__loading" id="food-photo-loading-text">Смотрю, что ты принёс…</p>
+            <p class="tutorial-card__text food-photo-card__text" id="food-photo-loading-text">Смотрю, что ты принёс…</p>
           </div>
 
-          <div class="receipt-scan-modal__state" data-food-photo-state="confirm" hidden>
-            <p class="receipt-scan-modal__hint" id="food-photo-confirm-hint">Угадал? Тапни, если не то</p>
+          <div class="receipt-scan-modal__state food-photo-confirm" data-food-photo-state="confirm" hidden>
+            <p class="tutorial-card__text food-photo-confirm-hint" id="food-photo-confirm-hint">Выбери, что на фото</p>
             <div class="food-photo-choices" id="food-photo-choices"></div>
           </div>
 
           <div class="receipt-scan-modal__state" data-food-photo-state="result" hidden>
             <p class="food-photo-result__hero" id="food-photo-result-emoji" aria-hidden="true"></p>
             <p class="food-photo-result__name" id="food-photo-result-name"></p>
-            <p class="receipt-scan-modal__meta" id="food-photo-result-phrase"></p>
+            <p class="receipt-scan-modal__meta food-photo-card__text" id="food-photo-result-phrase"></p>
             <p class="food-photo-result__coach" id="food-photo-result-coach"></p>
-            <button type="button" class="btn btn--primary receipt-scan-modal__close-btn" id="food-photo-done">Покормить</button>
+            <button type="button" class="btn btn--primary tutorial-card__next receipt-scan-modal__close-btn" id="food-photo-done">Покормить</button>
           </div>
 
           <div class="receipt-scan-modal__state" data-food-photo-state="error" hidden>
-            <p class="receipt-scan-modal__error" id="food-photo-error-text"></p>
-            <button type="button" class="btn btn--primary receipt-scan-modal__close-btn" id="food-photo-error-close">Закрыть</button>
+            <p class="receipt-scan-modal__error food-photo-card__text" id="food-photo-error-text"></p>
+            <button type="button" class="btn btn--primary tutorial-card__next receipt-scan-modal__close-btn" id="food-photo-error-close">Закрыть</button>
           </div>
         </div>
       </div>
@@ -1113,7 +1113,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '194';
+      var BUILD = '195';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

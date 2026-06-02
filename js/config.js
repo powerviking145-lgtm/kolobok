@@ -828,8 +828,8 @@ export const CONFIG = {
     tapScorePoints: 3,
     titlePick: 'Сфоткай еду',
     titleAnalyze: 'Смотрю, что ты принёс…',
-    titleConfirm: 'Угадал? Тапни, если не то',
-    confirmLowConfidenceHint: 'Колобок не уверен. Выбери, что на фото, и я запомню лучше 👇',
+    titleConfirm: 'Что на фото?',
+    confirmLowConfidenceHint: 'Выбери вариант ниже',
     titleResult: 'Зашло!',
     feedButtonLabel: 'Покормить',
     /** Жидкость → жажда, еда → сытость, минимум до этого % HUD */
