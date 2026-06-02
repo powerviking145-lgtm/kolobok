@@ -160,24 +160,40 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   let pendingFood = null;
   let pendingTutorialFeed = false;
   let tutorialDemoMode = false;
+  let currentState = 'pick';
 
   function isOpen() {
     return active && modal?.classList.contains('is-open');
   }
 
+  function canDismissModal() {
+    return currentState === 'pick' || currentState === 'error';
+  }
+
+  function syncCloseChrome() {
+    const closeBtn = modal?.querySelector('#food-photo-close');
+    if (!closeBtn) return;
+    const show = canDismissModal();
+    closeBtn.hidden = !show;
+    closeBtn.setAttribute('aria-hidden', show ? 'false' : 'true');
+  }
+
   function showState(name) {
     if (!modal) return;
+    currentState = name;
     modal.querySelectorAll('[data-food-photo-state]').forEach((el) => {
       el.hidden = el.getAttribute('data-food-photo-state') !== name;
     });
     const title = modal.querySelector('#food-photo-title');
     const titles = cfg();
-    if (!title) return;
-    if (name === 'pick') title.textContent = titles.titlePick ?? 'Сфоткай еду';
-    if (name === 'loading') title.textContent = titles.titleAnalyze ?? 'Смотрю…';
-    if (name === 'confirm') title.textContent = titles.titleConfirm ?? 'Что на фото?';
-    if (name === 'result') title.textContent = titles.titleResult ?? 'Зашло!';
-    if (name === 'error') title.textContent = titles.titleError ?? 'Не вышло';
+    if (title) {
+      if (name === 'pick') title.textContent = titles.titlePick ?? 'Сфоткай еду';
+      if (name === 'loading') title.textContent = titles.titleAnalyze ?? 'Смотрю…';
+      if (name === 'confirm') title.textContent = titles.titleConfirm ?? 'Что на фото?';
+      if (name === 'result') title.textContent = titles.titleResult ?? 'Зашло!';
+      if (name === 'error') title.textContent = titles.titleError ?? 'Не вышло';
+    }
+    syncCloseChrome();
   }
 
   function setOpen(open) {
@@ -233,6 +249,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   }
 
   function close() {
+    if (!canDismissModal()) return;
     const wasActive = active;
     forceClose();
     if (wasActive) callbacks.onClose?.();
@@ -506,7 +523,6 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     const fileInput = modal.querySelector('#food-photo-file');
 
     closeBtn?.addEventListener('click', close);
-    backdrop?.addEventListener('click', close);
     if (btnDone && cfg().feedButtonLabel) {
       btnDone.textContent = cfg().feedButtonLabel;
     }

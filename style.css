@@ -3098,6 +3098,11 @@ html.is-onboarding-active .tutorial-overlay {
 /* --- Food photo modal: как tutorial-card, без затемнения фона --- */
 .food-photo-modal .food-photo-modal__backdrop {
   background: transparent;
+  pointer-events: none;
+}
+
+.food-photo-modal .food-photo-card__close[hidden] {
+  display: none !important;
 }
 
 .food-photo-modal .food-photo-card {
