@@ -6177,3 +6177,19 @@ html:not(.is-tutorial-active) #idle-chat-dock .speech-bubble.is-visible ~ .speec
 #app.is-purchase-active .action-prompt {
   visibility: hidden;
 }
+
+/* Реплики колобка выключены (CONFIG.replies.enabled === false) */
+html.kolobok-speech-off #idle-chat-bubble,
+html.kolobok-speech-off #idle-chat-dock,
+html.kolobok-speech-off .speech-thought,
+html.kolobok-speech-off #action-prompt,
+html.kolobok-speech-off #nutrition-tip {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+html.kolobok-speech-off:not(.is-tutorial-active) {
+  --tutorial-dim: transparent;
+}

@@ -41,7 +41,7 @@ export const CONFIG = {
   },
 
   greeting: {
-    enabled: true,
+    enabled: false,
     /** Задержка после появления главного экрана */
     delayMs: 600,
     /** Сколько висит приветствие в баббле */
@@ -398,6 +398,8 @@ export const CONFIG = {
   },
 
   replies: {
+    /** false — без бабблов, приветствий и советов колобка на главном */
+    enabled: false,
     idleHideMs: 4000,
     /** Обычные реплики на главном — не гасить через 4 с */
     homeIdleAutoHide: false,
@@ -967,3 +969,8 @@ export const CONFIG = {
     ],
   },
 };
+
+/** Реплики колобка: баббл, приветствие, советы по еде, action-prompt */
+export function isKolobokSpeechEnabled() {
+  return CONFIG.replies?.enabled !== false;
+}

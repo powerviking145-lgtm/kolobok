@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js';
+import { CONFIG, isKolobokSpeechEnabled } from './config.js';
 import { positionSpeechBubble } from './speechPosition.js';
 
 const STAT_LABELS = {
@@ -152,6 +152,10 @@ export function createReplySystem({ elements, getHighlightButton }) {
   }
 
   function showIdle(text, { animate = true, autoHide = true, hideMs: hideMsOverride } = {}) {
+    if (!isKolobokSpeechEnabled()) {
+      hideIdle();
+      return;
+    }
     if (!idleBubble) return;
     hideNutrition();
     document.documentElement.classList.add('is-lecture-active');
@@ -188,6 +192,10 @@ export function createReplySystem({ elements, getHighlightButton }) {
 
   function showNutrition(text, { title } = {}) {
     return new Promise((resolve) => {
+      if (!isKolobokSpeechEnabled()) {
+        resolve('skip');
+        return;
+      }
       if (!nutritionTip || !nutritionText) {
         resolve('skip');
         return;
@@ -208,6 +216,10 @@ export function createReplySystem({ elements, getHighlightButton }) {
   }
 
   function showActionPrompt(text, buttonKey = 'run') {
+    if (!isKolobokSpeechEnabled()) {
+      hideActionPrompt();
+      return;
+    }
     hideNutrition();
     hideActionPrompt({ clearHighlight: false });
     const btn = getHighlightButton?.(buttonKey);

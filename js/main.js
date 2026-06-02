@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js';
+import { CONFIG, isKolobokSpeechEnabled } from './config.js';
 import { eventBus } from './eventBus.js';
 import { gameState } from './state.js';
 import {
@@ -1189,12 +1189,20 @@ function updateBurnRunUI(stats) {
 }
 
 function showPhrase(text, animate = true, { autoHide, hideMs } = {}) {
+  if (!isKolobokSpeechEnabled()) {
+    replySystem?.hideIdle();
+    return;
+  }
   currentPhrase = text;
   const shouldHide = autoHide ?? CONFIG.replies?.homeIdleAutoHide ?? false;
   replySystem?.showIdle(text, { animate, autoHide: shouldHide, hideMs });
 }
 
 function refreshPhrase(animate = true) {
+  if (!isKolobokSpeechEnabled()) {
+    replySystem?.hideAll();
+    return;
+  }
   if (shopUpgradeHint?.isActive()) return;
   const stats = gameState.get();
   if (isBurnRunReady(stats)) {
@@ -2075,7 +2083,9 @@ function performStageTap(clientX, clientY) {
     gameState.addTapScore(points);
     updateScoreHub(true);
   }
-  refreshPhrase(true);
+  if (isKolobokSpeechEnabled()) {
+    refreshPhrase(true);
+  }
 }
 
 function bindEvents() {
@@ -2615,6 +2625,9 @@ async function runCloudOnboardingGateCapped() {
 
 export async function launchGame() {
   try {
+    if (!isKolobokSpeechEnabled()) {
+      document.documentElement.classList.add('kolobok-speech-off');
+    }
     document.documentElement.style.setProperty(
       '--purchase-fly-target-y',
       `${CONFIG.purchase.layout.flyTargetY}%`
@@ -2660,6 +2673,9 @@ export async function launchGame() {
       },
       getHighlightButton: (key) => (key === 'run' ? ui.btnRun : ui.btnReceipt),
     });
+    if (!isKolobokSpeechEnabled()) {
+      replySystem.hideAll();
+    }
 
     kolobokLecture = createKolobokLecture({
       replySystem,
