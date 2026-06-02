@@ -123,6 +123,30 @@ function defaultTutorialMetrics() {
   };
 }
 
+function readTutorialDoneLocalStorage() {
+  try {
+    return localStorage.getItem('tutorialCompleted') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** Туториал считаем пройденным, если есть любой устойчивый сигнал прогресса. */
+export function inferTutorialCompleted(src) {
+  const raw = src && typeof src === 'object' ? src : state;
+  if (!raw) return readTutorialDoneLocalStorage();
+  if (raw.tutorialCompleted) return true;
+  if (readTutorialDoneLocalStorage()) return true;
+  const metrics = raw.tutorialMetrics;
+  if (metrics?.tutorialToFirstFeedCompleteAt) return true;
+  if ((raw.stars ?? 0) > 0) return true;
+  if ((raw.runScore ?? 0) > 0) return true;
+  if ((raw.tapScore ?? 0) > 0) return true;
+  if ((raw.bestDistance ?? 0) > 50) return true;
+  if ((raw.foodInteractCount ?? 0) >= 5) return true;
+  return false;
+}
+
 function defaultDailyMissions(day = todayKey()) {
   return {
     dayKey: day,
@@ -1224,30 +1248,52 @@ export const gameState = {
 
   importFromCloud(cloud = {}) {
     const raw = gameState.getRaw();
-    let tutorialDoneLocally = false;
-    try {
-      tutorialDoneLocally = localStorage.getItem('tutorialCompleted') === 'true';
-    } catch {
-      /* ignore */
+    const mergedMetrics = {
+      ...defaultTutorialMetrics(),
+      ...(raw.tutorialMetrics && typeof raw.tutorialMetrics === 'object' ? raw.tutorialMetrics : {}),
+      ...(cloud.tutorialMetrics && typeof cloud.tutorialMetrics === 'object'
+        ? cloud.tutorialMetrics
+        : {}),
+    };
+    if (
+      raw.tutorialMetrics?.tutorialToFirstFeedCompleteAt &&
+      !mergedMetrics.tutorialToFirstFeedCompleteAt
+    ) {
+      mergedMetrics.tutorialToFirstFeedCompleteAt =
+        raw.tutorialMetrics.tutorialToFirstFeedCompleteAt;
     }
-    const merged = normalizeState({
+    const mergedRaw = {
       ...raw,
       stars: cloud.stars ?? raw.stars,
       stats: cloud.stats ?? raw.stats,
       houses: cloud.houses ?? raw.houses,
       bestDistance: Math.max(raw.bestDistance ?? 0, cloud.bestDistance ?? 0),
       bestScore: Math.max(raw.bestScore ?? 0, cloud.bestScore ?? 0),
-      tutorialMetrics: cloud.tutorialMetrics ?? raw.tutorialMetrics,
-      tutorialCompleted: !!(
-        cloud.tutorialCompleted ||
-        raw.tutorialCompleted ||
-        tutorialDoneLocally
+      tutorialMetrics: mergedMetrics,
+      tapScore: cloud.tapScore ?? raw.tapScore,
+      runScore: cloud.runScore ?? raw.runScore,
+      foodInteractCount: Math.max(
+        raw.foodInteractCount ?? 0,
+        cloud.foodInteractCount ?? 0
       ),
+      tutorialCompleted: inferTutorialCompleted({
+        ...raw,
+        ...cloud,
+        tutorialMetrics: mergedMetrics,
+        bestDistance: Math.max(raw.bestDistance ?? 0, cloud.bestDistance ?? 0),
+        tapScore: cloud.tapScore ?? raw.tapScore,
+        runScore: cloud.runScore ?? raw.runScore,
+        foodInteractCount: Math.max(
+          raw.foodInteractCount ?? 0,
+          cloud.foodInteractCount ?? 0
+        ),
+      }),
+    };
+    const merged = normalizeState({
+      ...mergedRaw,
       kolobokName: cloud.kolobokName ?? raw.kolobokName,
       pvpWins: cloud.pvpWins ?? raw.pvpWins,
       pvpLosses: cloud.pvpLosses ?? raw.pvpLosses,
-      tapScore: cloud.tapScore ?? raw.tapScore,
-      runScore: cloud.runScore ?? raw.runScore,
     });
     state = merged;
     emitChange();
@@ -1272,13 +1318,13 @@ export const gameState = {
       bestDistance: raw.bestDistance ?? 0,
       bestScore: raw.bestScore ?? 0,
       tutorialMetrics: raw.tutorialMetrics ?? defaultTutorialMetrics(),
-      tutorialCompleted: !!raw.tutorialCompleted,
+      tutorialCompleted: inferTutorialCompleted(raw),
       saveVersion: CONFIG.saveVersion,
     };
   },
 
   getTutorialCompleted() {
-    return !!state.tutorialCompleted;
+    return inferTutorialCompleted(state);
   },
 
   setTutorialCompleted(value = true) {

@@ -44,6 +44,7 @@ export function createTutorialController({
   onRequestPhotoFeed,
   onReleaseFoodModal,
   onUnlock,
+  onProgressPersist,
   onGameplayUnlock,
 }) {
   const steps = CONFIG.tutorial.steps;
@@ -712,6 +713,7 @@ export function createTutorialController({
     hintsOnly = true;
     clearSpotlight();
     document.documentElement.classList.remove('is-tutorial-active', 'is-food-photo-active');
+    onProgressPersist?.();
     onReleaseFoodModal?.();
     try {
       onGameplayUnlock?.();
@@ -909,6 +911,7 @@ export function createTutorialController({
 
   function start({ force = false } = {}) {
     if (active && !force) return;
+    if (!force && isTutorialCompleted()) return;
     if (resizeHandler) {
       window.removeEventListener('resize', resizeHandler);
       resizeHandler = null;

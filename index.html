@@ -923,15 +923,43 @@
 
       <header class="runner-header" id="runner-stats" hidden>
 
-        <div class="runner-stats__grid" id="runner-stats-bars"></div>
+        <div class="runner-hud-panel">
 
-        <div class="runner-meta" id="runner-hud">
+          <div class="runner-hud__stats" id="runner-stats-bars"></div>
 
-          <span class="runner-meta__distance" id="runner-distance">0 м</span>
+          <div class="runner-hud__bar">
 
-          <span class="runner-meta__score">? <span id="runner-score">0</span></span>
+            <div class="runner-hud__metrics">
 
-          <button type="button" class="runner-meta__surrender" id="runner-surrender">Сдаться</button>
+              <div class="runner-hud__metric">
+
+                <span class="runner-hud__metric-label">Путь</span>
+
+                <span class="runner-hud__metric-value" id="runner-distance">0 м</span>
+
+              </div>
+
+              <div class="runner-hud__metric">
+
+                <span class="runner-hud__metric-label">Очки</span>
+
+                <span class="runner-hud__metric-value">⭐ <span id="runner-score">0</span></span>
+
+              </div>
+
+              <div class="runner-hud__metric runner-hud__metric--pace">
+
+                <span class="runner-hud__metric-label">Темп</span>
+
+                <span class="runner-hud__metric-value runner-hud__pace" id="runner-speed-tier">В темпе</span>
+
+              </div>
+
+            </div>
+
+            <button type="button" class="runner-hud__surrender" id="runner-surrender">Сдаться</button>
+
+          </div>
 
         </div>
 
@@ -1084,7 +1112,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '187';
+      var BUILD = '188';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

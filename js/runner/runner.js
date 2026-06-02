@@ -112,7 +112,9 @@ export function createRunner(options) {
 
   function getRunAccelMul() {
     const a = RUNNER_CONFIG.acceleration;
-    return a.startMul + distance * a.rampPerMeter;
+    const raw = a.startMul + distance * a.rampPerMeter;
+    const cap = a.capMul ?? 2.4;
+    return Math.min(cap, raw);
   }
 
   function getEffectiveAccelMul() {
@@ -178,6 +180,12 @@ export function createRunner(options) {
   }
 
   function tryJump() {
+    const stats = gameState.get();
+    if (stats.agility <= 0) {
+      hud.showPickupToast('Ловкость 0 — прыжок недоступен');
+      return;
+    }
+
     const rs = RUNNER_CONFIG.runStats;
     const wasOnGround = player.onGround;
     const jumpsBefore = player.jumpsLeft;

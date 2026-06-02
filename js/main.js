@@ -828,22 +828,32 @@ function reconcileTutorialChrome() {
 
 /** Блокировка главного UI — только пока туториал держит геймплей. */
 function hasTutorialCompletion() {
-  return (
-    isTutorialCompleted() ||
-    document.documentElement.dataset.tutorialDone === '1' ||
-    gameState.getTutorialCompleted?.()
-  );
+  if (document.documentElement.dataset.tutorialDone === '1') return true;
+  if (isTutorialCompleted()) return true;
+  return !!gameState.getTutorialCompleted?.();
 }
 
 /** Синхронизирует флаги прохождения туториала после pull из облака (не даём откатить true → false). */
 function syncTutorialCompletionFlags() {
   if (!hasTutorialCompletion()) return;
   markTutorialDoneOnPage();
-  if (!gameState.getTutorialCompleted?.()) {
+  if (!stateHasTutorialFlag()) {
     gameState.setTutorialCompleted?.(true);
     gameState.save();
     markCloudDirty();
   }
+}
+
+function stateHasTutorialFlag() {
+  const raw = gameState.getRaw?.();
+  return !!raw?.tutorialCompleted;
+}
+
+function persistTutorialProgress() {
+  markTutorialDoneOnPage();
+  gameState.setTutorialCompleted?.(true);
+  gameState.save();
+  markCloudDirty();
 }
 
 function isTutorialUiLocking() {
@@ -2182,6 +2192,7 @@ function initRunner() {
       results: document.getElementById('runner-results'),
       distance: document.getElementById('runner-distance'),
       score: document.getElementById('runner-score'),
+      speedTier: document.getElementById('runner-speed-tier'),
       toast: document.getElementById('runner-toast'),
       btnSurrender: document.getElementById('runner-surrender'),
       btnAgain: document.getElementById('runner-btn-again'),
@@ -2636,12 +2647,12 @@ export async function launchGame() {
       onSpawnTutorialFood: () => homeSpawns?.spawnTutorialFood(),
       onFoodTapped: () => {},
       onUnlock: () => {
-        markTutorialDoneOnPage();
-        gameState.setTutorialCompleted?.(true);
-        gameState.save();
-        markCloudDirty();
+        persistTutorialProgress();
         flushCloudSync().catch(() => {});
         purgeTutorialChrome();
+      },
+      onProgressPersist: () => {
+        persistTutorialProgress();
       },
       onGameplayUnlock: () => {
         restartHomeGameplay();
@@ -2713,6 +2724,7 @@ export async function launchGame() {
     disposeParticles = initHomeParticles(ui.homeParticles);
 
     gameState.load();
+    syncTutorialCompletionFlags();
     initFeedCooldown();
     const offlineDecayReport = gameState.consumeOfflineDecayReport?.();
     setPhraseNameResolver(() => gameState.getKolobokName());
