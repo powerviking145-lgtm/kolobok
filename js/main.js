@@ -2527,6 +2527,52 @@ function forceHideBootLoader() {
   root.setAttribute('aria-hidden', 'true');
 }
 
+let bootHidePromise = null;
+
+async function hideBootLoaderWhenReady() {
+  if (bootHidePromise) return bootHidePromise;
+
+  bootHidePromise = (async () => {
+    const cfg = CONFIG.loader ?? {};
+    const minMs = cfg.absoluteMinShowMs ?? cfg.minShowMs ?? 3000;
+    const started = window.__kolobokBootStartedAt ?? performance.now();
+    const wait = Math.max(0, minMs - (performance.now() - started));
+    if (wait > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, wait));
+    }
+
+    const root = document.getElementById('boot-loader');
+    if (!root || root.hidden) return;
+
+    const bar = document.getElementById('boot-loader-bar');
+    const pct = document.getElementById('boot-loader-percent');
+    const progress = document.getElementById('boot-loader-progress');
+    if (bar) bar.style.width = '100%';
+    if (pct) pct.textContent = '100%';
+    if (progress) progress.setAttribute('aria-valuenow', '100');
+
+    const tip = document.getElementById('boot-loader-tip');
+    if (cfg.doneTip && tip) tip.textContent = cfg.doneTip;
+
+    await new Promise((resolve) =>
+      window.setTimeout(resolve, cfg.afterLoadPauseMs ?? 400)
+    );
+
+    document.documentElement.classList.remove('boot-loading');
+    root.classList.add('is-done');
+    root.setAttribute('aria-busy', 'false');
+
+    await new Promise((resolve) =>
+      window.setTimeout(resolve, cfg.hideFadeMs ?? 500)
+    );
+
+    root.hidden = true;
+    root.setAttribute('aria-hidden', 'true');
+  })();
+
+  return bootHidePromise;
+}
+
 function showBootFatal(message) {
   const el = document.getElementById('boot-fatal-error');
   const text = document.getElementById('boot-fatal-text');
@@ -2832,7 +2878,6 @@ export async function launchGame() {
     ensureHomeDockVisible();
     updateShopButton();
 
-    forceHideBootLoader();
     resumeHomeVideo();
 
     await runCloudOnboardingGateCapped();
@@ -2873,7 +2918,7 @@ export async function launchGame() {
     startHomeFoods();
     resumeHomeVideo();
   } finally {
-    forceHideBootLoader();
+    await hideBootLoaderWhenReady();
   }
 }
 

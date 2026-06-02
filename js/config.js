@@ -531,9 +531,11 @@ export const CONFIG = {
   },
 
   loader: {
-    minShowMs: 1800,
-    /** В Telegram — короче, без долгого прелоада видео */
-    telegramMinShowMs: 400,
+    /** Жёсткий минимум видимости сплэша (мс) — браузер и Telegram */
+    absoluteMinShowMs: 3000,
+    minShowMs: 3000,
+    /** В Telegram — тот же минимум, без долгого прелоада видео */
+    telegramMinShowMs: 3000,
     telegramMaxWaitMs: 4500,
     /** Фоновая подгрузка 1-го ролика в TG после сплэша */
     telegramVideoPrimeMs: 5000,

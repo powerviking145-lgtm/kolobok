@@ -74,9 +74,11 @@ export function runBootLoader(elements) {
   }
 
   async function runLoad() {
-    const minShowMs = elements.telegramFast
-      ? cfg.telegramMinShowMs ?? 600
-      : cfg.minShowMs ?? 1500;
+    const floorMs = cfg.absoluteMinShowMs ?? 3000;
+    const configured = elements.telegramFast
+      ? cfg.telegramMinShowMs ?? floorMs
+      : cfg.minShowMs ?? floorMs;
+    const minShowMs = Math.max(floorMs, configured);
 
     if (!elements.preloadHomeVideos) {
       startTips();

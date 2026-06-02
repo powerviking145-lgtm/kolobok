@@ -1023,6 +1023,7 @@
   <script src="js/secrets.local.js" onerror="void 0"></script>
   <script>
     (async function () {
+      window.__kolobokBootStartedAt = performance.now();
       var TG_SLOW_TIPS = [
         'Первый заход — до 2–3 мин, не закрывай Mini App',
         'Тянем файлы с сервера…',
@@ -1112,7 +1113,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '192';
+      var BUILD = '193';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());
