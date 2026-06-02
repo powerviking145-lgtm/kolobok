@@ -127,23 +127,17 @@ const homeVideo = {
 
 function buildStatsBars() {
   const chipLabels = CONFIG.topPanel?.statChipLabels ?? {};
-  const groups = CONFIG.statGroups ?? {};
-  const groupOrder = [
-    { id: 'nutrition', keys: ['hunger', 'thirst'] },
-    { id: 'combat', keys: ['strength', 'agility'] },
-  ];
-  const barByKey = Object.fromEntries((CONFIG.statBars ?? []).map((b) => [b.key, b]));
+  const bars = CONFIG.statBars ?? [];
 
-  ui.statsBars.innerHTML = groupOrder
-    .map(({ id, keys }) => {
-      const label = groups[id]?.label ?? id;
-      const chips = keys
-        .map((key) => {
-          const bar = barByKey[key];
-          if (!bar) return '';
-          const caption = chipLabels[bar.key] ?? bar.label.toUpperCase();
-          return `
-    <button type="button" class="stat-chip top-stat stat-chip--${id}" data-stat="${bar.key}" data-stat-group="${id}" aria-label="${bar.label}">
+  ui.statsBars.innerHTML = `
+    <div class="stat-group stat-group--compact" data-stat-group="all">
+      <div class="stat-group__row stat-group__row--quad">
+        ${bars
+          .map((bar) => {
+            const caption = chipLabels[bar.key] ?? bar.label.toUpperCase();
+            const group = bar.group ?? 'nutrition';
+            return `
+    <button type="button" class="stat-chip top-stat stat-chip--${group}" data-stat="${bar.key}" data-stat-group="${group}" aria-label="${bar.label}">
       <span class="stat-chip__head">
         <span class="stat-chip__icon" aria-hidden="true">${bar.icon}</span>
         <span class="stat-chip__pct" data-pct="${bar.key}">0%</span>
@@ -151,19 +145,13 @@ function buildStatsBars() {
       <span class="stat-chip__track top-stat__track">
         <span class="stat-chip__fill top-stat__fill" data-fill="${bar.key}"></span>
       </span>
-      <span class="stat-chip__caption">${caption}</span>
+      <span class="stat-chip__caption" aria-hidden="true">${caption}</span>
       <span class="top-stat__tip" role="status" hidden></span>
-    </button>
-  `;
-        })
-        .join('');
-      return `
-    <div class="stat-group stat-group--${id}" data-stat-group="${id}">
-      <span class="stat-group__label">${label}</span>
-      <div class="stat-group__row">${chips}</div>
+    </button>`;
+          })
+          .join('')}
+      </div>
     </div>`;
-    })
-    .join('');
 }
 
 function hideAllStatTips() {
@@ -1712,7 +1700,6 @@ function isSliceBlocked() {
   return (
     isFeedFlowOnScreen() ||
     runner?.isActive() ||
-    badFoodTip?.isActive() ||
     isTutorialUiLocking()
   );
 }

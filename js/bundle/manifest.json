@@ -1,7 +1,7 @@
 {
   "enabled": true,
-  "build": "185",
+  "build": "186",
   "tg": "tg.bundle.js",
   "browser": "browser.bundle.js",
-  "builtAt": "2026-06-02T07:28:44.483Z"
+  "builtAt": "2026-06-02T13:26:37.130Z"
 }

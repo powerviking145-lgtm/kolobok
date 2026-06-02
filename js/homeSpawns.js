@@ -3,6 +3,7 @@ import { gameState } from './state.js';
 import { bindHomeSliceInput, playSliceFx, playBadQuarterSliceFx } from './homeSlice.js';
 import { playTapBurstFx } from './homeTapBurst.js';
 import { vibrate, pickFoodHaptic } from './homeUi.js';
+import { needsBadFoodTip } from './badFoodTip.js';
 
 function randBetween(min, max) {
   return min + Math.random() * (max - min);
@@ -279,10 +280,10 @@ export function createHomeSpawns({
     );
     if (!targets.length) return;
 
-    const hasBad = targets.some((btn) => isBadFood(getFoodFromBtn(btn)));
-    if (hasBad && onBeforeBadCollect) {
-      await onBeforeBadCollect({ food, clientX, clientY, sliced: false });
-    }
+    const tipAfter =
+      hasBad && onBeforeBadCollect && needsBadFoodTip()
+        ? onBeforeBadCollect({ food, clientX, clientY, sliced: false })
+        : null;
 
     vibrate(pickFoodHaptic('tapBlast', { blastCount: targets.length }));
 
@@ -330,13 +331,12 @@ export function createHomeSpawns({
       });
       removeSpawn(btn);
     });
+
+    if (tipAfter) await tipAfter;
   }
 
   async function dismissBadFood(btn, food, clientX, clientY, sliced, angleRad = 0) {
     if (!markCollected(btn)) return;
-    if (onBeforeBadCollect) {
-      await onBeforeBadCollect({ food, clientX, clientY, sliced });
-    }
     btn.classList.add(sliced ? 'home-spawn--sliced' : 'home-spawn--tap-pop');
     if (sliced) {
       await playSliceFx({ container, btn, food, angleRad });
@@ -345,9 +345,16 @@ export function createHomeSpawns({
     }
     onCollect({ food, clientX, clientY, element: btn, sliced });
     removeSpawn(btn);
+    if (onBeforeBadCollect && needsBadFoodTip()) {
+      await onBeforeBadCollect({ food, clientX, clientY, sliced });
+    }
   }
 
   function handleTap(btn, food, clientX, clientY) {
+    if (isBadFood(food)) {
+      dismissBadFood(btn, food, clientX, clientY, false);
+      return;
+    }
     handleTapBlast(btn, food, clientX, clientY);
   }
 
