@@ -763,7 +763,8 @@ function purgeTutorialChrome() {
     spotlight.classList.remove('tutorial-spotlight--full', 'tutorial-spotlight--stats');
   }
   if (tutorialCard) {
-    tutorialCard.classList.remove('tutorial-card--examples');
+    tutorialCard.classList.remove('tutorial-card--examples', 'tutorial-card--hints-only');
+    tutorialCard.setAttribute('hidden', '');
     tutorialCard.style.removeProperty('display');
     tutorialCard.style.removeProperty('visibility');
   }
@@ -774,7 +775,7 @@ function purgeTutorialChrome() {
     modal.setAttribute('aria-hidden', 'true');
     modal.classList.remove('is-open');
   }
-  foodPhotoFeed?.close?.();
+  foodPhotoFeed?.forceClose?.();
 
   document.getElementById('footer-buttons')?.classList.remove('is-hidden');
   ui.footer?.classList.remove('is-hidden');
@@ -1010,7 +1011,7 @@ function ensureHomeUiUnlocked({ refreshSpeech = false } = {}) {
 
   purgeTutorialChrome();
   restoreFeedDockInteractivity();
-  foodPhotoFeed?.close?.();
+  foodPhotoFeed?.forceClose?.();
   purchase?.forceReset?.();
   clearPurchaseOverlayState();
   syncPurchaseStuckState();
@@ -2379,7 +2380,7 @@ function initFoodPhotoFeed() {
         }
         resumeTimers();
         updateReceiptButton(gameState.get());
-        if (!isOnCooldown()) kickHomeSpawns();
+        if (!isOnCooldown() && !foodPhotoFeed?.isActive?.()) kickHomeSpawns();
       },
     },
   });
@@ -2735,9 +2736,10 @@ export async function launchGame() {
         tutorialAutoFeedAllowed = !gameState.getTutorialCompleted?.();
         resumeHomeVideo();
       },
-      onReleaseFoodModal: () => foodPhotoFeed?.close?.(),
+      onReleaseFoodModal: () => foodPhotoFeed?.forceClose?.(),
       onComplete: () => {
         shopUpgradeHint?.hide();
+        foodPhotoFeed?.forceClose?.();
         restoreHomeIdleState();
         restartHomeGameplay();
         currentPhrase = '';
@@ -2775,7 +2777,8 @@ export async function launchGame() {
         purgeTutorialChrome();
       },
       onProgressPersist: () => {
-        persistTutorialProgress();
+        gameState.save();
+        markCloudDirty();
       },
       onGameplayUnlock: () => {
         restartHomeGameplay();

@@ -255,11 +255,16 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     pendingFeedBoost = null;
     pendingFood = null;
     active = false;
+    currentState = 'pick';
     revokePreview();
     if (modal) {
       modal.hidden = true;
       modal.setAttribute('aria-hidden', 'true');
       modal.classList.remove('is-open');
+      modal.querySelector('.food-photo-card')?.classList.remove(
+        'food-photo-card--result',
+        'food-photo-card--scroll'
+      );
     }
     document.documentElement.classList.remove('is-food-photo-active');
     uiFooterShow();
@@ -530,6 +535,9 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   }
 
   function open() {
+    if (active && !modal?.classList.contains('is-open')) {
+      active = false;
+    }
     if (active) return;
     setOpen(true);
     syncPickChrome();

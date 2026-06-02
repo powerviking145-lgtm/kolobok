@@ -226,8 +226,10 @@ export function createTutorialController({
     });
     document.getElementById('food-photo-done')?.classList.remove('tutorial-highlight', 'tutorial-cutout');
     if (card) {
-      card.classList.remove('tutorial-card--examples');
+      card.classList.remove('tutorial-card--examples', 'tutorial-card--hints-only');
+      card.setAttribute('hidden', '');
       card.style.removeProperty('display');
+      card.style.removeProperty('visibility');
     }
     overlay?.setAttribute('hidden', '');
     overlay?.setAttribute('aria-hidden', 'true');
