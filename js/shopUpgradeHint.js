@@ -78,21 +78,25 @@ export function createShopUpgradeHint({
     return show();
   }
 
-  function openShop(e) {
+  function handleOpenShop(e) {
     e?.preventDefault?.();
     e?.stopPropagation?.();
+    if (!active) return;
+
     vibrate(CONFIG.ui?.hapticUpgradeHintOpen ?? [16, 14, 22]);
-    hide();
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        const opened = onOpenShop?.() === true;
-        if (opened) {
-          markShown();
-          return;
-        }
-        if (shouldShowShopUpgradeHint()) show();
-      });
-    });
+    document.documentElement.classList.remove('is-shop-hint-active');
+    setShopHighlight(false);
+    active = false;
+    root?.classList.remove('is-visible');
+    root?.setAttribute('hidden', '');
+    root?.setAttribute('aria-hidden', 'true');
+
+    const opened = onOpenShop?.() === true;
+    if (opened) {
+      markShown();
+      return;
+    }
+    if (shouldShowShopUpgradeHint()) show();
   }
 
   function onLater(e) {
@@ -102,18 +106,15 @@ export function createShopUpgradeHint({
     dismiss();
   }
 
-  function stopPointer(e) {
-    e.stopPropagation();
+  if (openBtn) {
+    openBtn.addEventListener('click', handleOpenShop);
   }
-
-  root?.addEventListener('pointerdown', stopPointer, true);
-  openBtn?.addEventListener('click', openShop);
-  openBtn?.addEventListener('pointerdown', stopPointer, true);
-  laterBtn?.addEventListener('click', onLater);
-  laterBtn?.addEventListener('pointerdown', stopPointer, true);
+  if (laterBtn) {
+    laterBtn.addEventListener('click', onLater);
+  }
   shopBtn?.addEventListener('click', (e) => {
     if (!active) return;
-    openShop(e);
+    handleOpenShop(e);
   });
 
   return {

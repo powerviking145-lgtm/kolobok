@@ -2123,6 +2123,8 @@ function openShopScreen({ force = false } = {}) {
   if (purchase?.isActive?.()) {
     purchase.forceReset();
     clearPurchaseOverlayState();
+  } else if (isPurchaseLayerVisible()) {
+    clearPurchaseOverlayState();
   }
 
   if (isRunnerScreenVisible() || runner?.isActive()) {
@@ -2134,8 +2136,6 @@ function openShopScreen({ force = false } = {}) {
       return false;
     }
     if (isFeedFlowOnScreen()) return false;
-  } else if (badFoodTip?.isActive() || roadmapScreen?.isOpen()) {
-    return false;
   }
 
   kolobokLecture?.dismiss?.();
@@ -2143,11 +2143,16 @@ function openShopScreen({ force = false } = {}) {
   document.documentElement.classList.remove('is-shop-hint-active');
   replySystem?.hideAll();
   shopTutorial?.forceReset?.();
-  if (!shopScreen?.open) return false;
+
+  if (typeof shopScreen?.open !== 'function') {
+    console.warn('Колобок: shopScreen не инициализирован');
+    return false;
+  }
+
   shopScreen.open();
   updateShopButton();
   kickHomeSpawns();
-  return true;
+  return shopScreen.isOpen?.() === true;
 }
 
 function setActionButtonLabels() {
@@ -2705,13 +2710,6 @@ export async function launchGame() {
       },
     });
     shopTutorial = createShopTutorial();
-    shopUpgradeHint = createShopUpgradeHint({
-      onOpenShop: () => openShopScreen({ force: true }),
-      onDismiss: () => {
-        refreshPhrase(true);
-        if (!isSpawnBlocked()) startHomeFoods();
-      },
-    });
     shopScreen = initShop({
       shopTutorial,
       onShopOpened: () => {
@@ -2721,6 +2719,13 @@ export async function launchGame() {
         replySystem?.hideAll();
         kolobokLecture?.dismiss?.();
         shopUpgradeHint?.hide();
+      },
+    });
+    shopUpgradeHint = createShopUpgradeHint({
+      onOpenShop: () => openShopScreen({ force: true }),
+      onDismiss: () => {
+        refreshPhrase(true);
+        if (!isSpawnBlocked()) startHomeFoods();
       },
     });
     initSocialBanner(document.getElementById('social-banner'), {
