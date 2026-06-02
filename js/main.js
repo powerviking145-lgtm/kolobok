@@ -2763,8 +2763,7 @@ export async function launchGame() {
           }
           foodPhotoFeed?.openTutorialPreset?.({
             foodId: 'water',
-            customComment:
-              'Я уже нашел тебе воду на первый раз. Дальше фоткаешь сам, хозяин.',
+            customComment: 'Вода на первый раз — дальше сам, бро.',
           });
         }
       },

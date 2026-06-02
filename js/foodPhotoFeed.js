@@ -194,6 +194,11 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       if (name === 'result') title.textContent = titles.titleResult ?? 'Зашло!';
       if (name === 'error') title.textContent = titles.titleError ?? 'Не вышло';
     }
+    const card = modal?.querySelector('.food-photo-card');
+    if (card) {
+      card.classList.toggle('food-photo-card--result', name === 'result');
+      card.classList.toggle('food-photo-card--scroll', name === 'manual' || name === 'confirm');
+    }
     syncCloseChrome();
   }
 
@@ -368,7 +373,13 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     return list[Math.floor(Math.random() * list.length)] ?? '';
   }
 
-  function getNutritionCoachLine(food) {
+  function truncateLine(text, max = 72) {
+    const s = String(text ?? '').trim();
+    if (s.length <= max) return s;
+    return `${s.slice(0, max - 1)}…`;
+  }
+
+  function getNutritionCoachLine(food, { compact = false } = {}) {
     const coach = cfg().nutritionCoach ?? {};
     const factsById = coach.factsById ?? {};
     const factsByKind = coach.factsByKind ?? {};
@@ -398,6 +409,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     if (!adviceLine) adviceLine = pickOne(advice.default);
 
     const patternLine = (() => {
+      if (compact) return '';
       const scanCount = Math.max(0, Math.floor(pattern.scanCount ?? 0));
       if (scanCount < 3) return '';
       if (pattern.hasBadOveruse) {
@@ -424,16 +436,31 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
 
   function showResult(food, { customComment, tutorialBonus = false } = {}) {
     pendingTutorialFeed = !!tutorialBonus;
-    const phrase =
-      customComment?.trim() || getFoodPhotoFeedPhrase(food);
+    if (previewImg) previewImg.hidden = true;
+
     if (resultEmoji) resultEmoji.textContent = food.emoji;
     if (resultName) resultName.textContent = food.name;
-    if (resultPhrase) resultPhrase.textContent = phrase;
-    if (resultCoach) {
-      const coachLine = getNutritionCoachLine(food);
-      const badge = tutorialBonus ? (CONFIG.tutorial?.tutorialBonusBadge ?? '') : '';
-      resultCoach.textContent = badge ? `${badge}\n${coachLine}` : coachLine;
+
+    const coachLine = getNutritionCoachLine(food, { compact: true });
+    const phraseRaw = customComment?.trim() || '';
+    const badge =
+      tutorialBonus && !phraseRaw ? (CONFIG.tutorial?.tutorialBonusBadge ?? '') : '';
+    const coachText = [badge, coachLine].filter(Boolean).join('\n');
+    if (resultPhrase) {
+      if (phraseRaw) {
+        resultPhrase.textContent = truncateLine(phraseRaw);
+        resultPhrase.hidden = false;
+      } else {
+        resultPhrase.textContent = '';
+        resultPhrase.hidden = true;
+      }
     }
+    if (resultCoach) {
+      resultCoach.textContent = coachText;
+      resultCoach.hidden = !coachText;
+    }
+
+    const phrase = phraseRaw || getFoodPhotoFeedPhrase(food);
     callbacks.onPhrase?.(phrase);
     showState('result');
     pendingFood = food;

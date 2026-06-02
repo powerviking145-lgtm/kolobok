@@ -415,7 +415,7 @@ export const CONFIG = {
   tutorial: {
     spotlightPad: 10,
     firstNeedsPercent: 24,
-    tutorialBonusBadge: '🎁 Tutorial bonus: первая еда/вода от меня, дальше сам фоткаешь.',
+    tutorialBonusBadge: '🎁 Первая кормёжка — дальше сам.',
     /** Обычные шаги ожидания (тап и т.п.) */
     stepSkipDelayMs: 6000,
     /** Проблемные шаги (фото-кормление) */

@@ -294,12 +294,14 @@
             <div class="food-photo-choices" id="food-photo-choices"></div>
           </div>
 
-          <div class="receipt-scan-modal__state" data-food-photo-state="result" hidden>
-            <p class="food-photo-result__hero" id="food-photo-result-emoji" aria-hidden="true"></p>
-            <p class="food-photo-result__name" id="food-photo-result-name"></p>
-            <p class="receipt-scan-modal__meta food-photo-card__text" id="food-photo-result-phrase"></p>
+          <div class="receipt-scan-modal__state food-photo-result" data-food-photo-state="result" hidden>
+            <div class="food-photo-result__head">
+              <span class="food-photo-result__hero" id="food-photo-result-emoji" aria-hidden="true"></span>
+              <span class="food-photo-result__name" id="food-photo-result-name"></span>
+            </div>
+            <p class="food-photo-result__phrase" id="food-photo-result-phrase" hidden></p>
             <p class="food-photo-result__coach" id="food-photo-result-coach"></p>
-            <button type="button" class="btn btn--primary tutorial-card__next receipt-scan-modal__close-btn" id="food-photo-done">Покормить</button>
+            <button type="button" class="btn btn--primary tutorial-card__next receipt-scan-modal__close-btn food-photo-result__done" id="food-photo-done">Покормить</button>
           </div>
 
           <div class="receipt-scan-modal__state" data-food-photo-state="error" hidden>
@@ -1120,7 +1122,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '197';
+      var BUILD = '198';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

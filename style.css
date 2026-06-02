@@ -3117,8 +3117,23 @@ html.is-onboarding-active .tutorial-overlay {
   color: var(--game-text-dark);
   gap: 0.5rem;
   overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.food-photo-modal .food-photo-card.food-photo-card--scroll {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.food-photo-modal .food-photo-card.food-photo-card--result {
+  max-height: none;
+  padding: 0.7rem 0.95rem 0.65rem;
+  gap: 0.35rem;
+}
+
+.food-photo-modal .food-photo-card--result .food-photo-card__title {
+  font-size: clamp(0.88rem, 3.8vw, 0.98rem);
+  margin-bottom: 0;
 }
 
 .food-photo-modal .food-photo-card__title {
@@ -3247,36 +3262,61 @@ html.is-onboarding-active .tutorial-overlay {
   transform: scale(0.98);
 }
 
-.receipt-scan-modal__card .btn--primary#food-photo-done {
+.receipt-scan-modal__card .btn--primary#food-photo-done,
+.food-photo-result__done {
   color: var(--game-text-dark);
   font-weight: 800;
+  min-height: clamp(2.35rem, 9.5vw, 2.65rem);
+  font-size: clamp(0.88rem, 3.8vw, 0.98rem);
+  margin-top: 0.15rem;
 }
 
-.food-photo-result__hero {
-  font-size: clamp(2.2rem, 12vw, 3rem);
-  line-height: 1;
-  text-align: center;
+.food-photo-result__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   margin: 0;
 }
 
+.food-photo-result__hero {
+  font-size: clamp(1.45rem, 7vw, 1.75rem);
+  line-height: 1;
+}
+
 .food-photo-result__name {
-  font-size: clamp(0.95rem, 4.2vw, 1.05rem);
+  font-size: clamp(0.88rem, 3.8vw, 0.98rem);
   font-weight: 800;
-  text-align: center;
   color: var(--game-text-dark);
-  margin: 0.15rem 0 0.35rem;
+  margin: 0;
+}
+
+.food-photo-result__phrase {
+  margin: 0;
+  font-size: clamp(0.72rem, 3.1vw, 0.8rem);
+  line-height: 1.35;
+  text-align: center;
+  color: rgba(42, 31, 26, 0.78);
+}
+
+.food-photo-result__phrase[hidden] {
+  display: none;
 }
 
 .food-photo-result__coach {
-  margin: 0.35rem 0 0.55rem;
-  padding: 0.55rem 0.65rem;
-  border-radius: 0.55rem;
+  margin: 0.15rem 0 0.25rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.5rem;
   border: 0.0625rem solid rgba(42, 31, 26, 0.14);
   background: rgba(255, 255, 255, 0.72);
   color: rgba(42, 31, 26, 0.88);
-  font-size: clamp(0.75rem, 3.2vw, 0.84rem);
-  line-height: 1.4;
+  font-size: clamp(0.72rem, 3.1vw, 0.8rem);
+  line-height: 1.35;
   white-space: pre-line;
+}
+
+.food-photo-result__coach[hidden] {
+  display: none;
 }
 
 .food-photo-modal {
