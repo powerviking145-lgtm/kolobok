@@ -1224,6 +1224,12 @@ export const gameState = {
 
   importFromCloud(cloud = {}) {
     const raw = gameState.getRaw();
+    let tutorialDoneLocally = false;
+    try {
+      tutorialDoneLocally = localStorage.getItem('tutorialCompleted') === 'true';
+    } catch {
+      /* ignore */
+    }
     const merged = normalizeState({
       ...raw,
       stars: cloud.stars ?? raw.stars,
@@ -1232,7 +1238,11 @@ export const gameState = {
       bestDistance: Math.max(raw.bestDistance ?? 0, cloud.bestDistance ?? 0),
       bestScore: Math.max(raw.bestScore ?? 0, cloud.bestScore ?? 0),
       tutorialMetrics: cloud.tutorialMetrics ?? raw.tutorialMetrics,
-      tutorialCompleted: cloud.tutorialCompleted ?? raw.tutorialCompleted,
+      tutorialCompleted: !!(
+        cloud.tutorialCompleted ||
+        raw.tutorialCompleted ||
+        tutorialDoneLocally
+      ),
       kolobokName: cloud.kolobokName ?? raw.kolobokName,
       pvpWins: cloud.pvpWins ?? raw.pvpWins,
       pvpLosses: cloud.pvpLosses ?? raw.pvpLosses,

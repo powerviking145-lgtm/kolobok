@@ -280,6 +280,7 @@ export function createHomeSpawns({
     );
     if (!targets.length) return;
 
+    const hasBad = targets.some((btn) => isBadFood(getFoodFromBtn(btn)));
     const tipAfter =
       hasBad && onBeforeBadCollect && needsBadFoodTip()
         ? onBeforeBadCollect({ food, clientX, clientY, sliced: false })

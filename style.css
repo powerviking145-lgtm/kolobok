@@ -4416,6 +4416,20 @@ html.is-burn-run-ready:not(.is-lecture-active) .speech-dock {
   pointer-events: none;
 }
 
+#app.is-runner-active #tutorial-overlay,
+#app.is-runner-active #tutorial-spotlight,
+html:has(#app.is-runner-active) #tutorial-overlay,
+html:has(#app.is-runner-active) #tutorial-spotlight {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+html:has(#app.is-runner-active) {
+  --tutorial-dim: transparent;
+}
+
 #app.is-runner-active #idle-chat-bubble,
 #app.is-runner-active .speech-thought,
 #app.is-runner-active #idle-chat-dock,

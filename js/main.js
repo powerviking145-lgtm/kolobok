@@ -835,6 +835,17 @@ function hasTutorialCompletion() {
   );
 }
 
+/** Синхронизирует флаги прохождения туториала после pull из облака (не даём откатить true → false). */
+function syncTutorialCompletionFlags() {
+  if (!hasTutorialCompletion()) return;
+  markTutorialDoneOnPage();
+  if (!gameState.getTutorialCompleted?.()) {
+    gameState.setTutorialCompleted?.(true);
+    gameState.save();
+    markCloudDirty();
+  }
+}
+
 function isTutorialUiLocking() {
   if (typeof tutorial?.isGameplayLocked === 'function' && tutorial.isGameplayLocked()) {
     return true;
@@ -2184,6 +2195,7 @@ function initRunner() {
     callbacks: {
       getStats: () => gameState.get(),
       onStart: () => {
+        purgeTutorialChrome();
         pauseTimers();
         pauseKolobokVideo();
         replySystem?.hideAll();
@@ -2458,6 +2470,7 @@ async function runCloudOnboardingGate() {
 
   try {
     await pullProfile();
+    syncTutorialCompletionFlags();
   } catch (err) {
     console.warn('Колобок: pull', err);
   }
@@ -2753,7 +2766,10 @@ export async function launchGame() {
     // Если облако подтянулось медленно, делаем ещё одну проверку перед автозапуском туториала.
     if (!hasTutorialCompletion() && canUseCloudSync()) {
       await pullProfile().catch(() => {});
+      syncTutorialCompletionFlags();
     }
+
+    syncTutorialCompletionFlags();
 
     if (!hasTutorialCompletion()) {
       pauseGameTimers();
