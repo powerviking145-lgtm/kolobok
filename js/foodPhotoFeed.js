@@ -265,6 +265,12 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     uiFooterShow();
   }
 
+  function finishFeedClose() {
+    const wasActive = active;
+    forceClose();
+    if (wasActive) callbacks.onClose?.();
+  }
+
   function close() {
     if (!canDismissModal()) return;
     const wasActive = active;
@@ -605,7 +611,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       const boost = pendingFeedBoost;
       pendingFeedBoost = null;
       pendingFood = null;
-      close();
+      finishFeedClose();
       callbacks.onComplete?.(boost);
     });
     btnErrorClose?.addEventListener('click', close);
