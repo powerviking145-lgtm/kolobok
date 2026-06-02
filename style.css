@@ -2709,6 +2709,7 @@ html.is-bad-food-tip-active .tutorial-dots {
 
 .shop-upgrade-hint .btn {
   pointer-events: auto;
+  touch-action: manipulation;
   position: relative;
   z-index: 1;
   min-height: clamp(3rem, 11vw, 3.5rem);
@@ -2739,6 +2740,11 @@ html.is-shop-hint-active #shop-upgrade-hint.is-visible .btn {
   pointer-events: auto;
   position: relative;
   z-index: 1;
+  touch-action: manipulation;
+}
+
+html.is-shop-hint-active .stage-hero {
+  touch-action: auto;
 }
 
 html.is-shop-hint-active::before {

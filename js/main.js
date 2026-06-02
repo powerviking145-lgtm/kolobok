@@ -1719,7 +1719,23 @@ function isRunnerScreenVisible() {
   return Boolean(layer && !layer.hidden);
 }
 
+function clearStaleRunnerChrome() {
+  if (runner?.isActive?.()) return;
+  const layer = document.getElementById('runner-layer');
+  if (layer && !layer.hidden) {
+    layer.hidden = true;
+    layer.setAttribute('aria-hidden', 'true');
+  }
+  ui.app?.classList.remove('is-runner-active');
+  const homeUi = document.getElementById('home-ui');
+  if (homeUi) {
+    homeUi.hidden = false;
+    homeUi.removeAttribute('hidden');
+  }
+}
+
 function tryShowShopUpgradeHint() {
+  if (gameState.getTutorials().upgradeHintShown) return;
   if (isFeedFlowOnScreen()) return;
   if (isRunnerScreenVisible()) return;
   if (isKolobokStarved()) return;
@@ -2030,6 +2046,10 @@ function onKolobokEat() {
 /** Тап по пустому месту сцены (эмодзи, очки, улыбка колобка). */
 function performStageTap(clientX, clientY) {
   if (shopUpgradeHint?.isActive()) {
+    const hit = document.elementFromPoint(clientX, clientY);
+    if (hit?.closest?.('#shop-upgrade-hint, #btn-shop.shop-hint-highlight')) {
+      return;
+    }
     shopUpgradeHint.dismissLater();
     return;
   }
@@ -2127,8 +2147,19 @@ function openShopScreen({ force = false } = {}) {
     clearPurchaseOverlayState();
   }
 
-  if (isRunnerScreenVisible() || runner?.isActive()) {
+  if (runner?.isActive()) {
     return false;
+  }
+
+  if (isRunnerScreenVisible()) {
+    clearStaleRunnerChrome();
+    ensureHomeUiUnlocked({ refreshSpeech: false });
+    const homeUi = document.getElementById('home-ui');
+    if (homeUi?.hidden) {
+      homeUi.hidden = false;
+      homeUi.removeAttribute('hidden');
+    }
+    document.documentElement.classList.remove('is-shop-hint-active');
   }
 
   if (!force) {

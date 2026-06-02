@@ -70,6 +70,7 @@ export function createShopUpgradeHint({
     root.classList.add('is-visible');
     document.documentElement.classList.add('is-shop-hint-active');
     setShopHighlight(true);
+    markShown();
     return true;
   }
 
@@ -78,25 +79,33 @@ export function createShopUpgradeHint({
     return show();
   }
 
+  let openShopHandledAt = 0;
+
   function handleOpenShop(e) {
-    e?.preventDefault?.();
-    e?.stopPropagation?.();
+    if (e?.button > 0) return;
+    const now = performance.now();
+    if (now - openShopHandledAt < 450) {
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      return;
+    }
     if (!active) return;
 
+    openShopHandledAt = now;
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
     vibrate(CONFIG.ui?.hapticUpgradeHintOpen ?? [16, 14, 22]);
+    markShown();
+
+    onOpenShop?.();
+
+    active = false;
     document.documentElement.classList.remove('is-shop-hint-active');
     setShopHighlight(false);
-    active = false;
     root?.classList.remove('is-visible');
     root?.setAttribute('hidden', '');
     root?.setAttribute('aria-hidden', 'true');
-
-    const opened = onOpenShop?.() === true;
-    if (opened) {
-      markShown();
-      return;
-    }
-    if (shouldShowShopUpgradeHint()) show();
   }
 
   function onLater(e) {
@@ -107,6 +116,7 @@ export function createShopUpgradeHint({
   }
 
   if (openBtn) {
+    openBtn.addEventListener('pointerdown', handleOpenShop, { passive: false });
     openBtn.addEventListener('click', handleOpenShop);
   }
   if (laterBtn) {

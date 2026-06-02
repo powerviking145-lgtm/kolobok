@@ -1262,8 +1262,18 @@ export const gameState = {
       mergedMetrics.tutorialToFirstFeedCompleteAt =
         raw.tutorialMetrics.tutorialToFirstFeedCompleteAt;
     }
+    const localTutorials =
+      raw.tutorials && typeof raw.tutorials === 'object' ? raw.tutorials : defaultTutorials();
+    const cloudTutorials =
+      cloud.tutorials && typeof cloud.tutorials === 'object' ? cloud.tutorials : {};
     const mergedRaw = {
       ...raw,
+      tutorials: {
+        shopOpened: !!(localTutorials.shopOpened || cloudTutorials.shopOpened),
+        upgradeHintShown: !!(
+          localTutorials.upgradeHintShown || cloudTutorials.upgradeHintShown
+        ),
+      },
       stars: cloud.stars ?? raw.stars,
       stats: cloud.stats ?? raw.stats,
       houses: cloud.houses ?? raw.houses,
@@ -1319,6 +1329,10 @@ export const gameState = {
       bestScore: raw.bestScore ?? 0,
       tutorialMetrics: raw.tutorialMetrics ?? defaultTutorialMetrics(),
       tutorialCompleted: inferTutorialCompleted(raw),
+      tutorials: {
+        shopOpened: !!raw.tutorials?.shopOpened,
+        upgradeHintShown: !!raw.tutorials?.upgradeHintShown,
+      },
       saveVersion: CONFIG.saveVersion,
     };
   },

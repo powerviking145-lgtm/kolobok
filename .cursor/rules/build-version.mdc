@@ -9,3 +9,13 @@ alwaysApply: true
 - When the user asks to **raise/increase the version** («повысить версию», «+1 версия») or to **deploy/push with a new version** («залей» with version bump implied): increment `BUILD` by **1** in `js/build.js`, sync `index.html` boot `var BUILD`, and `js/entry.js` fallback if present.
 - Then run `node scripts/build.mjs` before commit (updates `js/bundle/*` and `manifest.json`).
 - Commit message format: `BUILD NNN: <short summary>`.
+
+## Telegram — единственный способ теста
+
+Пользователь **всегда** тестирует в **Telegram mini app**, не в браузере на ПК.
+
+- **Никогда** не советовать Ctrl+F5, hard refresh, «обнови страницу в браузере» — это бесполезно для Telegram.
+- После правок кода: BUILD + `node scripts/build.mjs` → **commit → push** (деплой на Firebase/hosting).
+- Кэш сбрасывается через `?v=BUILD` в `index.html` (стили, бандл, SW). Новая версия подтягивается только после **push** и **переоткрытия** мини-приложения в Telegram (закрыть → снова открыть через бота).
+- Если правки уже с BUILD, но без push — сказать честно: «ещё не залито, скажи залей» или залить по запросу «залей».
+- См. также `BUNDLE.md`: перед push в прод — бандл в коммите, `manifest.enabled: true`.
