@@ -4,11 +4,13 @@ import { getBossCatchPhrase } from '../phrases.js';
 import { RUNNER_CONFIG } from './runner-config.js';
 
 const RUNNER_LABELS = {
-  hunger: 'Еда',
-  thirst: 'Вода',
-  health: 'Жизнь',
-  mood: 'Вайб',
+  strength: 'Сила',
+  agility: 'Ловкость',
 };
+
+function getCombatBars() {
+  return (CONFIG.statBars ?? []).filter((bar) => bar.group === 'combat');
+}
 
 export function createHud(elements) {
   let bestScore = 0;
@@ -17,7 +19,8 @@ export function createHud(elements) {
 
   function buildRunnerStats() {
     if (!elements.statsBars || statsBuilt) return;
-    elements.statsBars.innerHTML = CONFIG.statBars
+    const bars = getCombatBars();
+    elements.statsBars.innerHTML = bars
       .map(
         (bar) => `
       <div class="runner-stat-card" data-stat="${bar.key}">
@@ -55,7 +58,7 @@ export function createHud(elements) {
       elements.score.textContent = String(Math.floor(score));
 
       if (stats && elements.statsBars) {
-        CONFIG.statBars.forEach((bar) => {
+        getCombatBars().forEach((bar) => {
           const value = stats[bar.key];
           const card = elements.statsBars.querySelector(`[data-stat="${bar.key}"]`);
           const fill = elements.statsBars.querySelector(`[data-fill="${bar.key}"]`);
@@ -101,7 +104,7 @@ export function createHud(elements) {
       elements.resultBest.textContent = String(Math.floor(bestScore));
       const titles = {
         surrender: 'Сдался? Норм, бро.',
-        health: 'Здоровье ноль. Забег окончен.',
+        exhausted: 'Сил нет — забег окончен.',
         collision: 'Попался!',
       };
       if (reason === 'boss') {

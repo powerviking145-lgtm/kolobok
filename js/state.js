@@ -1,8 +1,10 @@
 import { CONFIG } from './config.js';
 import { eventBus } from './eventBus.js';
 
-/** hunger = сытость (food), thirst = жажда (water) */
-export const STAT_KEYS = ['hunger', 'thirst', 'health', 'mood'];
+/** hunger/thirst — питание; strength/agility — форма для мини-игр */
+export const NUTRITION_STAT_KEYS = ['hunger', 'thirst'];
+export const COMBAT_STAT_KEYS = ['strength', 'agility'];
+export const STAT_KEYS = [...NUTRITION_STAT_KEYS, ...COMBAT_STAT_KEYS];
 
 function statScaleMax() {
   return CONFIG.stats.max ?? 120;
@@ -40,8 +42,7 @@ export function percentToAbsolute(percent) {
 /** Потолок стата в %: 40 + level (прокачка +1% к max) */
 export function getStatMaxPercent(statKey, src = state) {
   const level = getStatLevel(statKey, src);
-  const pct = statBasePercent() + Math.max(0, Math.min(statLevelCap(), level));
-  return Math.min(100, pct);
+  return statBasePercent() + Math.max(0, Math.min(statLevelCap(), level));
 }
 
 /** Абсолютный потолок (пункты на шкале 120) */
@@ -86,8 +87,8 @@ function defaultStats() {
   return {
     hunger: defaultStatEntry(),
     thirst: defaultStatEntry(),
-    health: defaultStatEntry(),
-    mood: defaultStatEntry(),
+    strength: defaultStatEntry(),
+    agility: defaultStatEntry(),
   };
 }
 
@@ -327,6 +328,21 @@ function migrateStatsTo80Base(target, savedVersion) {
   bumpLegacy40StatsToStart(target);
 }
 
+/** health/mood → strength/agility (save v9) */
+function migrateHealthMoodToCombat(target, savedVersion) {
+  if (savedVersion >= 9) return;
+  if (!target.stats || typeof target.stats !== 'object') return;
+
+  if (target.stats.health && !target.stats.strength) {
+    target.stats.strength = target.stats.health;
+    delete target.stats.health;
+  }
+  if (target.stats.mood && !target.stats.agility) {
+    target.stats.agility = target.stats.mood;
+    delete target.stats.mood;
+  }
+}
+
 /** Старые сейвы: 48/120 (=40% HUD) → старт 80%. Безопасно повторять. */
 function bumpLegacy40StatsToStart(target) {
   const legacyAbs = percentToAbsolute(40);
@@ -444,6 +460,8 @@ export function normalizeState(raw = {}) {
   }
 
   migrateFlatStats(raw, merged);
+  migrateHealthMoodToCombat(raw, savedVersion);
+  migrateHealthMoodToCombat(merged, savedVersion);
   migrateStatsToPercentScale(merged, savedVersion);
   migrateStatsTo80Base(merged, savedVersion);
   bumpLegacy40StatsToStart(merged);
@@ -550,8 +568,8 @@ function getHomeDecayPerTick() {
     return {
       hunger: perTick,
       thirst: perTick,
-      health: 0,
-      mood: 0,
+      strength: 0,
+      agility: 0,
     };
   }
   const ms90 = 90 * 60 * 1000;
@@ -577,66 +595,58 @@ function getHomeDecayTickMs() {
 
 function ensureDecayRemainder() {
   if (!state._decayRemainder) {
-    state._decayRemainder = { hunger: 0, thirst: 0, health: 0, mood: 0 };
+    state._decayRemainder = { hunger: 0, thirst: 0, strength: 0, agility: 0 };
   }
 }
 
-function ensureHealthHybridRuntime() {
-  if (!state._healthHybridRuntime) {
-    state._healthHybridRuntime = {
-      lastTickTs: Date.now(),
-      exhaustionAccumMs: 0,
-    };
-  }
+function nutritionReadinessFactor(statKey) {
+  const cfg = CONFIG.combatRegen ?? {};
+  const min = cfg.minNutritionFactor ?? 0.12;
+  const pct = getStatDisplayPercentValue(getStatCurrent(statKey, state)) / 100;
+  return Math.max(min, Math.min(1.25, pct));
 }
 
-function applyHealthHybridAfterDecay() {
-  const cfg = CONFIG.healthHybrid ?? {};
+function applyCombatRegenAfterDecay() {
+  const cfg = CONFIG.combatRegen ?? {};
   if (cfg.enabled === false) return false;
-  ensureHealthHybridRuntime();
 
   let changed = false;
-  const runtime = state._healthHybridRuntime;
-  const now = Date.now();
-  const dt = Math.max(0, now - (runtime.lastTickTs || now));
-  runtime.lastTickTs = now;
+  const strStep =
+    (cfg.strengthBasePerTick ?? 1.2) * nutritionReadinessFactor('hunger');
+  const agiStep =
+    (cfg.agilityBasePerTick ?? 1.2) * nutritionReadinessFactor('thirst');
+
+  if (strStep > 0) {
+    const cur = getStatCurrent('strength', state);
+    const max = getStatMax('strength', state);
+    if (cur < max) {
+      state.stats.strength.current = clampStat('strength', cur + strStep, state);
+      changed = true;
+    }
+  }
+
+  if (agiStep > 0) {
+    const cur = getStatCurrent('agility', state);
+    const max = getStatMax('agility', state);
+    if (cur < max) {
+      state.stats.agility.current = clampStat('agility', cur + agiStep, state);
+      changed = true;
+    }
+  }
 
   const hunger = getStatCurrent('hunger', state);
   const thirst = getStatCurrent('thirst', state);
-  const target = Math.round((hunger + thirst) / 2);
-  const syncStep = Math.max(0, Math.floor(cfg.syncStepPerTick ?? 1));
-
-  if (syncStep > 0) {
-    ['health', 'mood'].forEach((key) => {
-      const current = getStatCurrent(key, state);
-      if (current < target) {
-        state.stats[key].current = clampStat(key, current + syncStep, state);
-        changed = true;
-      } else if (current > target) {
-        state.stats[key].current = clampStat(key, current - syncStep, state);
-        changed = true;
-      }
-    });
-  }
-
-  const starving = hunger <= 0 && thirst <= 0;
-  if (!starving) {
-    runtime.exhaustionAccumMs = 0;
-    return changed;
-  }
-
-  runtime.exhaustionAccumMs += dt;
-  const everyMs = Math.max(60_000, Number(cfg.exhaustionPenaltyEveryMs) || 30 * 60 * 1000);
-  const penaltyAmount = Math.max(1, Math.floor(cfg.exhaustionPenaltyAmount ?? 1));
-  const hits = Math.floor(runtime.exhaustionAccumMs / everyMs);
-  if (hits > 0) {
-    runtime.exhaustionAccumMs -= hits * everyMs;
-    state.stats.health.current = clampStat(
-      'health',
-      getStatCurrent('health', state) - hits * penaltyAmount,
-      state
-    );
-    changed = true;
+  if (hunger <= 0 && thirst <= 0) {
+    const penalty = Math.max(0, cfg.exhaustionPenaltyPerTick ?? 0.5);
+    if (penalty > 0) {
+      COMBAT_STAT_KEYS.forEach((key) => {
+        const cur = getStatCurrent(key, state);
+        if (cur > 0) {
+          state.stats[key].current = clampStat(key, cur - penalty, state);
+          changed = true;
+        }
+      });
+    }
   }
 
   return changed;
@@ -657,7 +667,7 @@ function applyDecayTick(multiplier = 1) {
     }
   });
 
-  if (applyHealthHybridAfterDecay()) {
+  if (applyCombatRegenAfterDecay()) {
     changed = true;
   }
 
@@ -675,7 +685,7 @@ function applyOfflineDecay(elapsedMs) {
 
   const rates = getHomeDecayPerTick();
   let changed = false;
-  const drops = { hunger: 0, thirst: 0, health: 0, mood: 0 };
+  const drops = { hunger: 0, thirst: 0, strength: 0, agility: 0 };
 
   STAT_DECAY_KEYS.forEach((key) => {
     const drop = Math.floor((rates[key] ?? 0) * ticks);
@@ -686,26 +696,26 @@ function applyOfflineDecay(elapsedMs) {
     }
   });
 
-  const hc = CONFIG.healthHybrid ?? {};
-  if (hc.enabled !== false) {
+  const cr = CONFIG.combatRegen ?? {};
+  if (cr.enabled !== false) {
     const hunger = getStatCurrent('hunger', state);
     const thirst = getStatCurrent('thirst', state);
     if (hunger <= 0 && thirst <= 0) {
-      const everyMs = Math.max(
-        60_000,
-        Number(hc.exhaustionPenaltyEveryMs) || 30 * 60 * 1000
-      );
-      const amount = Math.max(1, Math.floor(hc.exhaustionPenaltyAmount ?? 1));
-      const hits = Math.floor(ms / everyMs);
-      if (hits > 0) {
-        const hpLoss = hits * amount;
-        state.stats.health.current = clampStat(
-          'health',
-          getStatCurrent('health', state) - hpLoss,
-          state
-        );
-        drops.health += hpLoss;
-        changed = true;
+      const penalty = Math.max(0, cr.exhaustionPenaltyPerTick ?? 0.5);
+      const offlineTicks = Math.floor(ticks);
+      if (penalty > 0 && offlineTicks > 0) {
+        COMBAT_STAT_KEYS.forEach((key) => {
+          const loss = Math.floor(penalty * offlineTicks);
+          if (loss > 0) {
+            state.stats[key].current = clampStat(
+              key,
+              getStatCurrent(key, state) - loss,
+              state
+            );
+            drops[key] += loss;
+            changed = true;
+          }
+        });
       }
     }
   }
@@ -897,34 +907,36 @@ export const gameState = {
     return next - prev;
   },
 
-  /** Синхронно подтянуть health/mood к среднему hunger+thirst (для явного апдейта после кормления). */
-  syncDerivedFromPrimary({ immediate = false, step = null } = {}) {
+  /** После кормления — ускоренный regen силы/ловкости. */
+  syncDerivedFromPrimary({ immediate = false } = {}) {
     ensureStatsShape(state);
-    const target = Math.round((getStatCurrent('hunger', state) + getStatCurrent('thirst', state)) / 2);
-    const deltas = { health: 0, mood: 0 };
-    const syncStep = Math.max(1, Math.floor(step ?? (CONFIG.healthHybrid?.syncStepPerTick ?? 1)));
-    let changed = false;
-
-    ['health', 'mood'].forEach((key) => {
-      const prev = getStatCurrent(key, state);
-      let next = prev;
-      if (immediate) {
-        next = target;
-      } else if (prev < target) {
-        next = prev + syncStep;
-      } else if (prev > target) {
-        next = prev - syncStep;
-      }
-      next = clampStat(key, next, state);
-      if (next !== prev) {
-        state.stats[key].current = next;
-        deltas[key] = next - prev;
-        changed = true;
-      }
-    });
-
-    if (changed) emitChange();
+    const loops = immediate ? (CONFIG.combatRegen?.feedBurstTicks ?? 4) : 1;
+    const deltas = { strength: 0, agility: 0 };
+    for (let i = 0; i < loops; i += 1) {
+      const beforeS = getStatCurrent('strength', state);
+      const beforeA = getStatCurrent('agility', state);
+      applyCombatRegenAfterDecay();
+      deltas.strength += getStatCurrent('strength', state) - beforeS;
+      deltas.agility += getStatCurrent('agility', state) - beforeA;
+    }
+    if (deltas.strength || deltas.agility) emitChange();
     return deltas;
+  },
+
+  /** +N% HUD за тап/слайс по еде (не bad). */
+  applyCombatTapRestore({ isDrink = false } = {}) {
+    const cfg = CONFIG.combatTapRestore ?? {};
+    const pct = cfg.displayPercent ?? 1;
+    const key = isDrink ? 'agility' : 'strength';
+    if (!isStatKey(key)) return { key, delta: 0 };
+    ensureStatsShape(state);
+    const absDelta = (pct / 100) * statScaleMax();
+    const prev = getStatCurrent(key, state);
+    const next = clampStat(key, prev + absDelta, state);
+    state.stats[key].current = next;
+    const delta = next - prev;
+    if (delta) emitChange();
+    return { key, delta };
   },
 
   load() {

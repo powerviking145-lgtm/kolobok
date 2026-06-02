@@ -16,7 +16,7 @@ import {
 
 
 
-const STAT_ICONS = { hunger: '🍗', thirst: '💧', health: '❤️', mood: '😎' };
+const STAT_ICONS = { hunger: '🍗', thirst: '💧', strength: '💪', agility: '⚡' };
 
 
 

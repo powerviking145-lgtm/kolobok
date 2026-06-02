@@ -7,7 +7,7 @@ export const BUILD =
 export const CONFIG = {
   build: BUILD,
   storageKey: 'kolobok_save',
-  saveVersion: 8,
+  saveVersion: 9,
 
   firebase: {
     enabled: true,
@@ -165,25 +165,29 @@ export const CONFIG = {
     displayPercentPer90Min: 1,
     hunger: 1,
     thirst: 1,
-    health: 1,
-    mood: 1,
+    strength: 0,
+    agility: 0,
     runMultiplier: 1.8,
     /** Оффлайн-декей: максимум сколько часов считаем за один вход. */
     offlineMaxHours: 168,
   },
 
   /**
-   * Гибридное здоровье:
-   * - базово тянется к среднему hunger/thirst;
-   * - при двух нулях дополнительно штрафуется раз в 30 минут.
+   * Восстановление силы/ловкости на домашнем экране:
+   * скорость от сытости (сила) и жажды (ловкость).
    */
-  healthHybrid: {
+  combatRegen: {
     enabled: true,
-    /** На сколько пунктов health за тик тянется к среднему(hunger, thirst). */
-    syncStepPerTick: 1,
-    /** Когда hunger=0 и thirst=0 — штраф раз в 30 мин. */
-    exhaustionPenaltyEveryMs: 30 * 60 * 1000,
-    exhaustionPenaltyAmount: 1,
+    strengthBasePerTick: 1.2,
+    agilityBasePerTick: 1.2,
+    minNutritionFactor: 0.12,
+    exhaustionPenaltyPerTick: 0.4,
+    feedBurstTicks: 4,
+  },
+
+  /** +display % за тап/слайс по еде на экране (до личного max). */
+  combatTapRestore: {
+    displayPercent: 1,
   },
 
   timers: {
@@ -194,8 +198,8 @@ export const CONFIG = {
   statColors: {
     hunger: { from: '#FF8C42', to: '#FFB84D' },
     thirst: { from: '#4A9EFF', to: '#6BB6FF' },
-    health: { from: '#FF5E7E', to: '#FF8FA3' },
-    mood: { from: '#FFD93D', to: '#FFE873' },
+    strength: { from: '#E85D4A', to: '#FF7E6B' },
+    agility: { from: '#7B68EE', to: '#9B8CFF' },
   },
 
   homeParticles: {
@@ -378,7 +382,7 @@ export const CONFIG = {
     step1Ms: 2000,
     confettiCount: 18,
     receiptAutoAdvanceMs: 5000,
-    statBoostFallback: { hunger: 25, thirst: 20, health: 25, mood: 12 },
+    statBoostFallback: { hunger: 25, thirst: 20, strength: 25, agility: 12 },
     orbitSlots: [
       { left: 72, top: 36 },
       { left: 82, top: 50 },
@@ -515,6 +519,8 @@ export const CONFIG = {
     hungerLow: 20,
     thirstLow: 20,
     healthLow: 30,
+    strengthLow: 30,
+    agilityLow: 30,
     angryMood: 20,
     moodHigh: 80,
     allGoodMin: 50,
@@ -583,11 +589,16 @@ export const CONFIG = {
     ],
   },
 
+  statGroups: {
+    nutrition: { label: 'Питание' },
+    combat: { label: 'Форма' },
+  },
+
   statBars: [
-    { key: 'hunger', label: 'Сытость', icon: '🍗' },
-    { key: 'thirst', label: 'Жажда', icon: '💧' },
-    { key: 'health', label: 'Здоровье', icon: '❤️' },
-    { key: 'mood', label: 'Настроение', icon: '😎' },
+    { key: 'hunger', label: 'Сытость', icon: '🍗', group: 'nutrition' },
+    { key: 'thirst', label: 'Жажда', icon: '💧', group: 'nutrition' },
+    { key: 'strength', label: 'Сила', icon: '💪', group: 'combat' },
+    { key: 'agility', label: 'Ловкость', icon: '⚡', group: 'combat' },
   ],
 
   socialBanner: {
@@ -627,20 +638,20 @@ export const CONFIG = {
     statFillColors: {
       hunger: '#F5A623',
       thirst: '#4FB3F5',
-      health: '#E25C5C',
-      mood: '#B57BE0',
+      strength: '#E85D4A',
+      agility: '#7B68EE',
     },
     statThemes: {
       hunger: { rgb: '245, 166, 35', hex: '#F5A623', dark: '#C48412' },
       thirst: { rgb: '79, 179, 245', hex: '#4FB3F5', dark: '#2E8BC4' },
-      health: { rgb: '226, 92, 92', hex: '#E25C5C', dark: '#B83A3A' },
-      mood: { rgb: '181, 123, 224', hex: '#B57BE0', dark: '#8B4FB8' },
+      strength: { rgb: '232, 93, 74', hex: '#E85D4A', dark: '#C44332' },
+      agility: { rgb: '123, 104, 238', hex: '#7B68EE', dark: '#5A4BB8' },
     },
     statChipLabels: {
       hunger: 'СЫТОСТЬ',
       thirst: 'ЖАЖДА',
-      health: 'ЗДОРОВЬЕ',
-      mood: 'НАСТРОЕНИЕ',
+      strength: 'СИЛА',
+      agility: 'ЛОВКОСТЬ',
     },
     criticalRatio: 0.15,
     statTipHideMs: 1500,
@@ -767,17 +778,17 @@ export const CONFIG = {
     { id: 'milk', emoji: '🥛', name: 'Молоко', price: 89, effects: { hunger: 10 } },
     { id: 'bread', emoji: '🍞', name: 'Хлеб', price: 45, effects: { hunger: 12 } },
     { id: 'cheese', emoji: '🧀', name: 'Сыр', price: 199, effects: { hunger: 15 } },
-    { id: 'chocolate', emoji: '🍫', name: 'Шоколадка', price: 79, effects: { hunger: 8, mood: 10 } },
+    { id: 'chocolate', emoji: '🍫', name: 'Шоколадка', price: 79, effects: { hunger: 8, agility: 10 } },
     { id: 'cola', emoji: '🥤', name: 'Кола', price: 120, effects: { thirst: 12 } },
-    { id: 'beer', emoji: '🍺', name: 'Пиво', price: 89, effects: { mood: 15, health: -5 } },
-    { id: 'broccoli', emoji: '🥦', name: 'Брокколи', price: 99, effects: { health: 10 } },
-    { id: 'apple', emoji: '🍎', name: 'Яблоко', price: 35, effects: { health: 8 } },
-    { id: 'pizza', emoji: '🍕', name: 'Пицца', price: 350, effects: { hunger: 20, mood: 10 } },
+    { id: 'beer', emoji: '🍺', name: 'Пиво', price: 89, effects: { agility: 15, strength: -5 } },
+    { id: 'broccoli', emoji: '🥦', name: 'Брокколи', price: 99, effects: { strength: 10 } },
+    { id: 'apple', emoji: '🍎', name: 'Яблоко', price: 35, effects: { strength: 8 } },
+    { id: 'pizza', emoji: '🍕', name: 'Пицца', price: 350, effects: { hunger: 20, agility: 10 } },
     { id: 'meat', emoji: '🥩', name: 'Мясо', price: 450, effects: { hunger: 25 } },
     { id: 'chicken', emoji: '🍗', name: 'Курица', price: 290, effects: { hunger: 20 } },
-    { id: 'coffee', emoji: '☕', name: 'Кофе', price: 150, effects: { mood: 10 } },
-    { id: 'icecream', emoji: '🍦', name: 'Мороженое', price: 99, effects: { mood: 15 } },
-    { id: 'banana', emoji: '🍌', name: 'Банан', price: 25, effects: { hunger: 5, health: 5 } },
+    { id: 'coffee', emoji: '☕', name: 'Кофе', price: 150, effects: { agility: 10 } },
+    { id: 'icecream', emoji: '🍦', name: 'Мороженое', price: 99, effects: { agility: 15 } },
+    { id: 'banana', emoji: '🍌', name: 'Банан', price: 25, effects: { hunger: 5, strength: 5 } },
     { id: 'eggs', emoji: '🥚', name: 'Яйца', price: 89, effects: { hunger: 10 } },
   ],
 
@@ -881,9 +892,9 @@ export const CONFIG = {
       },
     },
     effectsByKind: {
-      good: { hunger: 14, thirst: 8, health: 10, mood: 6 },
-      neutral: { hunger: 12, mood: 10 },
-      bad: { hunger: 16, mood: 14, health: -4 },
+      good: { hunger: 14, thirst: 8, strength: 10, agility: 6 },
+      neutral: { hunger: 12, agility: 10 },
+      bad: { hunger: 16, agility: 14, strength: -4 },
     },
   },
 

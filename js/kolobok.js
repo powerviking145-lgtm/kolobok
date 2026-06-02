@@ -1,7 +1,7 @@
 import { CONFIG } from './config.js';
 import { phrases, getCantRunPhrase, pickNamedFrom, formatPhrase } from './phrases.js';
 
-const MOOD_PRIORITY = ['sleepy', 'overstuffed', 'sick', 'angry', 'hungry', 'thirsty', 'happy', 'normal'];
+const MOOD_PRIORITY = ['sleepy', 'overstuffed', 'sick', 'weak', 'hungry', 'thirsty', 'happy', 'normal'];
 
 export function getMood(stats) {
   const t = CONFIG.moodThresholds;
@@ -10,15 +10,17 @@ export function getMood(stats) {
     sleepy: stats.hunger >= (t.sleepyHunger ?? 110),
     overstuffed:
       stats.hunger >= t.overstuffed && stats.hunger < (t.sleepyHunger ?? 110),
-    sick: stats.health < t.healthLow,
-    angry: stats.mood < (t.angryMood ?? 20),
+    sick: stats.hunger <= 0 && stats.thirst <= 0,
+    weak:
+      stats.strength < (t.strengthLow ?? 30) ||
+      stats.agility < (t.agilityLow ?? 30),
     hungry: stats.hunger < t.hungerLow,
     thirsty: stats.thirst < t.thirstLow,
     happy:
-      stats.mood >= t.moodHigh &&
       stats.hunger >= t.allGoodMin &&
       stats.thirst >= t.allGoodMin &&
-      stats.health >= t.allGoodMin,
+      stats.strength >= t.allGoodMin &&
+      stats.agility >= t.allGoodMin,
     normal: true,
   };
 
@@ -37,7 +39,7 @@ function pickRandom(list, exclude) {
 
 export function isBurnRunReady(stats) {
   const min = CONFIG.moodThresholds.burnRunAbove ?? 100;
-  return [stats.hunger, stats.thirst, stats.health, stats.mood].every((v) => v > min);
+  return stats.hunger > min && stats.thirst > min;
 }
 
 export function pickBurnRunPhrase(lastPhrase = '') {
@@ -52,23 +54,25 @@ export function pickGreetingPhrase(name) {
 }
 
 export function pickPhrase(mood, lastPhrase = '') {
-  if (mood === 'normal') {
+  const phraseKey = mood === 'weak' ? 'angry' : mood;
+  if (phraseKey === 'normal') {
     const combined = [...phrases.normal, ...phrases.idle];
     return pickNamedFrom(combined, lastPhrase);
   }
-  return pickNamedFrom(phrases[mood] || phrases.normal, lastPhrase);
+  return pickNamedFrom(phrases[phraseKey] || phrases.normal, lastPhrase);
 }
 
 export function getMoodClass(mood) {
-  return `kolobok--${mood}`;
+  const key = mood === 'weak' ? 'angry' : mood;
+  return `kolobok--${key}`;
 }
 
 export function canStartRun(stats) {
   return (
     stats.hunger > 0 &&
     stats.thirst > 0 &&
-    stats.health > 0 &&
-    stats.mood > 0
+    stats.strength > 0 &&
+    stats.agility > 0
   );
 }
 
@@ -82,8 +86,8 @@ export function canRequestReceipt(stats) {
   return (
     stats.hunger < min ||
     stats.thirst < min ||
-    stats.health < min ||
-    stats.mood < min
+    stats.strength < min ||
+    stats.agility < min
   );
 }
 

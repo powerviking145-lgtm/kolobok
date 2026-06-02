@@ -89,8 +89,8 @@ export function createUnpackingFlow({ elements, callbacks }) {
     const fb = CONFIG.unpacking?.statBoostFallback || {
       hunger: 25,
       thirst: 20,
-      health: 20,
-      mood: 12,
+      strength: 20,
+      agility: 12,
     };
     Object.entries(fb).forEach(([key, value]) => {
       if (value) boosts[key] = (boosts[key] ?? 0) + value;

@@ -127,12 +127,23 @@ const homeVideo = {
 
 function buildStatsBars() {
   const chipLabels = CONFIG.topPanel?.statChipLabels ?? {};
+  const groups = CONFIG.statGroups ?? {};
+  const groupOrder = [
+    { id: 'nutrition', keys: ['hunger', 'thirst'] },
+    { id: 'combat', keys: ['strength', 'agility'] },
+  ];
+  const barByKey = Object.fromEntries((CONFIG.statBars ?? []).map((b) => [b.key, b]));
 
-  ui.statsBars.innerHTML = CONFIG.statBars
-    .map((bar) => {
-      const caption = chipLabels[bar.key] ?? bar.label.toUpperCase();
-      return `
-    <button type="button" class="stat-chip top-stat" data-stat="${bar.key}" aria-label="${bar.label}">
+  ui.statsBars.innerHTML = groupOrder
+    .map(({ id, keys }) => {
+      const label = groups[id]?.label ?? id;
+      const chips = keys
+        .map((key) => {
+          const bar = barByKey[key];
+          if (!bar) return '';
+          const caption = chipLabels[bar.key] ?? bar.label.toUpperCase();
+          return `
+    <button type="button" class="stat-chip top-stat stat-chip--${id}" data-stat="${bar.key}" data-stat-group="${id}" aria-label="${bar.label}">
       <span class="stat-chip__head">
         <span class="stat-chip__icon" aria-hidden="true">${bar.icon}</span>
         <span class="stat-chip__pct" data-pct="${bar.key}">0%</span>
@@ -144,6 +155,13 @@ function buildStatsBars() {
       <span class="top-stat__tip" role="status" hidden></span>
     </button>
   `;
+        })
+        .join('');
+      return `
+    <div class="stat-group stat-group--${id}" data-stat-group="${id}">
+      <span class="stat-group__label">${label}</span>
+      <div class="stat-group__row">${chips}</div>
+    </div>`;
     })
     .join('');
 }
@@ -391,7 +409,10 @@ async function rebakeKolobokAfterDeath() {
 function updateDeathState(stats) {
   const deathModal = document.getElementById('death-modal');
   if (!deathModal) return;
-  const deadNow = Math.round(stats.health ?? 0) <= 0;
+  const deadNow =
+    Math.round(stats.hunger ?? 0) <= 0 &&
+    Math.round(stats.thirst ?? 0) <= 0 &&
+    Math.round(stats.strength ?? 0) <= 0;
   if (!deadNow || deathFlowActive) {
     if (!deathFlowActive) {
       deathModal.classList.remove('is-open');
@@ -679,7 +700,8 @@ function buildOfflineDecayToast(report) {
   const parts = [];
   if (d.hunger > 0) parts.push(`сытость −${d.hunger}`);
   if (d.thirst > 0) parts.push(`жажда −${d.thirst}`);
-  if (d.health > 0) parts.push(`здоровье −${d.health}`);
+  if (d.strength > 0) parts.push(`сила −${d.strength}`);
+  if (d.agility > 0) parts.push(`ловкость −${d.agility}`);
   if (!parts.length) return '';
   return `Пока тебя не было (${formatAbsenceTime(report.elapsedMs)}), колобок оголодал: ${parts.join(', ')}.`;
 }
@@ -1875,6 +1897,7 @@ function applyFoodStatBoostFromTapScore(prevTapScore, nextTapScore) {
   if (steps <= 0) return 0;
 
   CONFIG.statBars.forEach((bar) => {
+    if (bar.group === 'combat') return;
     gameState.changeStat(bar.key, steps * amount);
     pulseStat(bar.key);
   });
@@ -1920,12 +1943,19 @@ function handleFoodCollect({
       if (statBoost > 0) {
         const effects = {};
         CONFIG.statBars.forEach((bar) => {
-          effects[bar.key] = statBoost;
+          if (bar.group === 'nutrition') effects[bar.key] = statBoost;
         });
         replySystem?.showFloatingReactions(clientX, clientY, effects);
       }
     }
     updateScoreHub(true);
+  }
+
+  const restore = gameState.applyCombatTapRestore?.({
+    isDrink: !!food.thirstPriority,
+  });
+  if (restore?.delta > 0) {
+    pulseStat(restore.key);
   }
 
   if (!skipHaptic) {
@@ -2003,17 +2033,8 @@ function performStageTap(clientX, clientY) {
   const mul = status?.isFullyServed ? (CONFIG.feedLoop?.fullCarePointsMultiplier ?? 1) : 1;
   const points = basePoints ? Math.max(1, Math.round(basePoints * mul)) : 0;
   if (points) {
-    gameState.changeStat('mood', CONFIG.ui.tapMoodBonus ?? 1);
-    if (status?.isFullyServed) {
-      const bonus = CONFIG.feedLoop?.fullCareTapStatBonus ?? 0;
-      if (bonus > 0) {
-        gameState.changeStat('hunger', bonus);
-        gameState.changeStat('thirst', bonus);
-      }
-    }
     gameState.addTapScore(points);
     updateScoreHub(true);
-    pulseStat('mood');
   }
   refreshPhrase(true);
 }
@@ -2404,8 +2425,8 @@ function tickCriticalWarnings() {
   const order = [
     ['thirst', stats.thirst],
     ['hunger', stats.hunger],
-    ['health', stats.health],
-    ['mood', stats.mood],
+    ['strength', stats.strength],
+    ['agility', stats.agility],
   ];
   const low = order.find(([, v]) => v < threshold);
   if (!low) return;

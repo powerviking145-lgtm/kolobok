@@ -78,9 +78,12 @@ export const RUNNER_CONFIG = {
     drainEveryMeters: 15,
     drainHunger: 1,
     drainThirst: 1,
-    collisionHealthLoss: 5,
-    starveHealthTickMs: 1350,
-    starveHealthLoss: 1,
+    /** Стартовый % силы/ловкости в забеге (от шкалы 120, не выше личного max). */
+    combatStartDisplayPercent: 80,
+    collisionStrengthLoss: 7,
+    collisionAgilityLoss: 2,
+    jumpAgilityLoss: 2.5,
+    doubleJumpAgilityLoss: 3.5,
   },
 
   pickups: {
@@ -113,7 +116,7 @@ export const RUNNER_CONFIG = {
         emoji: '💊',
         spawnMinMs: 40000,
         spawnMaxMs: 40000,
-        effects: { health: 20 },
+        effects: { strength: 20 },
         floatText: '+20 ❤️',
       },
     },

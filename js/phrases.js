@@ -91,6 +91,16 @@ export const phrases = {
   ],
 
   cantRun: {
+    strength: [
+      '{name}, сила на нуле. Потапай еду или отдохни.',
+      'Без силы не рвану, {name}. Восстановись.',
+      '{name}, выжат. Сначала форма.',
+    ],
+    agility: [
+      '{name}, ловкость ноль. Порежь напитки на экране.',
+      'Тормозной, {name}. Сначала ловкость.',
+      '{name}, без ловкости — только в лоб.',
+    ],
     health: [
       '{name}, здоровье ноль. Лежу, не бегу. Подлечись.',
       'Ноги не идут, {name}. Цифры не врут.',
@@ -583,12 +593,14 @@ phrases.unpackFinal = [
 phrases.criticalWarn = {
   hunger: ['{name}, голодный. Покорми.', 'Бро, еды бы, {name}.'],
   thirst: ['{name}, воды бы. Срочно.', 'Пересох, {name}. Капни воды.'],
+  strength: ['{name}, сил нет. Потапай еду или покорми.', 'Бро, я выжат. Восстанови силу.'],
+  agility: ['{name}, ловкость на нуле. Порежь напитки.', 'Тормозим, {name}. Жидкости на экран!'],
   health: ['{name}, расклеился. Полежу.', 'Энергия на нуле, {name}.'],
   mood: ['{name}, скучно. Развлеки.', 'Настроение в жопе, {name}. Тапни.'],
 };
 
 export function sumItemEffects(items) {
-  const sum = { hunger: 0, thirst: 0, health: 0, mood: 0 };
+  const sum = { hunger: 0, thirst: 0, strength: 0, agility: 0 };
   items.forEach((item) => {
     const fx = item.effects || {};
     Object.keys(sum).forEach((k) => {
@@ -641,9 +653,9 @@ export function getBossCatchPhrase(bossId) {
 }
 
 export function getCantRunPhrase(stats) {
-  if (stats.health <= 0) return pickNamedFrom(phrases.cantRun.health);
+  if (stats.strength <= 0) return pickNamedFrom(phrases.cantRun.strength ?? phrases.cantRun.health);
+  if (stats.agility <= 0) return pickNamedFrom(phrases.cantRun.agility ?? phrases.cantRun.mood);
   if (stats.hunger <= 0) return pickNamedFrom(phrases.cantRun.hunger);
   if (stats.thirst <= 0) return pickNamedFrom(phrases.cantRun.thirst);
-  if (stats.mood <= 0) return pickNamedFrom(phrases.cantRun.mood);
   return pickNamedFrom(phrases.cantRun.any);
 }

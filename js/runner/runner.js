@@ -6,7 +6,7 @@ import { findCollisionIndex } from './collisions.js';
 import { createBoss } from './boss.js';
 import { createHud } from './hud.js';
 import { createPickupManager } from './pickups.js';
-import { gameState } from '../state.js';
+import { gameState, percentToAbsolute } from '../state.js';
 import { canStartRun, getBlockRunPhrase } from '../kolobok.js';
 import {
   resetLocations,
@@ -18,9 +18,9 @@ import { preloadSoilPatterns, createSoilParallax } from './soilPatterns.js';
 
 preloadSoilPatterns().catch(() => {});
 
-function getStatTier(stats) {
+function getCombatTier(stats) {
   const m = RUNNER_CONFIG.speedMultipliers;
-  const values = [stats.hunger, stats.thirst, stats.health, stats.mood];
+  const values = [stats.strength, stats.agility];
   if (values.some((v) => v <= 0)) return 'zero';
   if (values.some((v) => v < m.statLowThreshold)) return 'low';
   return 'good';
@@ -28,15 +28,17 @@ function getStatTier(stats) {
 
 function getStatSpeedMultiplier(stats) {
   const m = RUNNER_CONFIG.speedMultipliers;
-  const tier = getStatTier(stats);
-  if (tier === 'zero') return m.statsAnyZero;
-  if (tier === 'low') return m.statsAnyLow;
-  return m.statsAllGood;
+  const tier = getCombatTier(stats);
+  const agilityPct = Math.max(0, stats.agility) / Math.max(1, gameState.getStatMax('agility'));
+  const agilityMul = 0.72 + Math.min(1, agilityPct) * 0.28;
+  if (tier === 'zero') return m.statsAnyZero * agilityMul;
+  if (tier === 'low') return m.statsAnyLow * agilityMul;
+  return m.statsAllGood * agilityMul;
 }
 
 function getStatBossInfluence(stats) {
   const inf = RUNNER_CONFIG.boss.statInfluence;
-  const tier = getStatTier(stats);
+  const tier = getCombatTier(stats);
   if (tier === 'zero') {
     return { creep: inf.creep.zero, pullBack: inf.pullBack.zero };
   }
@@ -59,7 +61,6 @@ export function createRunner(options) {
   let speedMul = 1;
   let lastStats = null;
   let lastDrainMilestone = 0;
-  let starveTimer = 0;
   let catchEndsAt = 0;
   let ctx = null;
   let size = { width: 0, height: 0 };
@@ -135,25 +136,9 @@ export function createRunner(options) {
     }
   }
 
-  function applyStarveDamage(dt) {
-    const stats = gameState.get();
-    const rs = RUNNER_CONFIG.runStats;
-    if (stats.hunger > 0 && stats.thirst > 0) {
-      starveTimer = 0;
-      return;
-    }
-    starveTimer += dt;
-    if (starveTimer >= rs.starveHealthTickMs) {
-      starveTimer = 0;
-      gameState.changeStat('health', -rs.starveHealthLoss);
-      refreshSpeedMul();
-      checkHealthGameOver(gameState.get());
-    }
-  }
-
-  function checkHealthGameOver(stats) {
-    if (stats.health <= 0) {
-      endRun('health');
+  function checkCombatGameOver(stats) {
+    if (stats.strength <= 0 && stats.agility <= 0) {
+      endRun('exhausted');
       return true;
     }
     return false;
@@ -182,6 +167,8 @@ export function createRunner(options) {
       bossId: reason === 'boss' ? getBossId() : null,
     });
 
+    gameState.save();
+
     callbacks.onEnd({
       distance: finalDistance,
       score: finalScore,
@@ -190,16 +177,38 @@ export function createRunner(options) {
     });
   }
 
+  function tryJump() {
+    const rs = RUNNER_CONFIG.runStats;
+    const wasOnGround = player.onGround;
+    const jumpsBefore = player.jumpsLeft;
+    if (!player.jump()) return;
+
+    let loss = 0;
+    if (wasOnGround) {
+      loss = rs.jumpAgilityLoss ?? 2.5;
+    } else if (jumpsBefore <= 1) {
+      loss = rs.doubleJumpAgilityLoss ?? rs.jumpAgilityLoss ?? 3.5;
+    } else {
+      loss = rs.jumpAgilityLoss ?? 2.5;
+    }
+
+    if (loss > 0) {
+      gameState.changeStat('agility', -loss);
+      refreshSpeedMul();
+      checkCombatGameOver(gameState.get());
+    }
+  }
+
   function onKeyDown(e) {
     if (e.code === 'Space') {
       e.preventDefault();
-      player.jump();
+      tryJump();
     }
   }
 
   function onTap() {
     if (!active) return;
-    player.jump();
+    tryJump();
   }
 
   function drawFrame() {
@@ -225,7 +234,8 @@ export function createRunner(options) {
     player.registerHit();
     const bossResult = boss.onHit();
     obstacles.removeAt(hitIndex);
-    gameState.changeStat('health', -rs.collisionHealthLoss);
+    gameState.changeStat('strength', -(rs.collisionStrengthLoss ?? 7));
+    gameState.changeStat('agility', -(rs.collisionAgilityLoss ?? 2));
     refreshSpeedMul();
 
     if (bossResult.shouldCatch) {
@@ -238,7 +248,7 @@ export function createRunner(options) {
       hud.showBossWarning(bossResult.strikeLevel);
     }
 
-    checkHealthGameOver(gameState.get());
+    checkCombatGameOver(gameState.get());
   }
 
   function applyPickup(pickup) {
@@ -249,7 +259,7 @@ export function createRunner(options) {
     });
     hud.showPickupToast(pickup.floatText);
     refreshSpeedMul();
-    if (checkHealthGameOver(gameState.get())) return;
+    if (checkCombatGameOver(gameState.get())) return;
   }
 
   function tick(now) {
@@ -293,8 +303,7 @@ export function createRunner(options) {
       applyMeterDrain();
     }
 
-    applyStarveDamage(dt);
-    if (checkHealthGameOver(gameState.get())) return;
+    if (checkCombatGameOver(stats)) return;
 
     updateLocations(distance, dt);
     const newLocation = consumeLocationEntered();
@@ -312,15 +321,29 @@ export function createRunner(options) {
       if (hitIndex >= 0) handleObstacleHit(hitIndex);
     }
 
-    if (checkHealthGameOver(gameState.get())) return;
+    if (checkCombatGameOver(gameState.get())) return;
 
     hud.update(distance, score, gameState.get());
     drawFrame();
     animId = requestAnimationFrame(tick);
   }
 
+  function prepareRunnerCombatStats() {
+    const rs = RUNNER_CONFIG.runStats;
+    const startAbs = percentToAbsolute(rs.combatStartDisplayPercent ?? 80);
+    gameState.setStat(
+      'strength',
+      Math.min(startAbs, gameState.getStatMax('strength'))
+    );
+    gameState.setStat(
+      'agility',
+      Math.min(startAbs, gameState.getStatMax('agility'))
+    );
+  }
+
   function beginRun(stats, bestScore) {
     if (!canStartRun(stats)) return;
+    prepareRunnerCombatStats();
     active = true;
     scrollX = 0;
     distance = 0;
@@ -328,7 +351,6 @@ export function createRunner(options) {
     frameCount = 0;
     runAccelMul = 1;
     lastDrainMilestone = 0;
-    starveTimer = 0;
     catchEndsAt = 0;
     speedMul = getStatSpeedMultiplier(stats);
     elements.bestScore = bestScore || 0;
@@ -348,7 +370,7 @@ export function createRunner(options) {
 
     resize();
     hud.show();
-    hud.update(0, 0, stats);
+    hud.update(0, 0, gameState.get());
 
     lastTime = performance.now();
     window.addEventListener('resize', onResize);

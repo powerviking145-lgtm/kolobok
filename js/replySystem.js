@@ -4,18 +4,18 @@ import { positionSpeechBubble } from './speechPosition.js';
 const STAT_LABELS = {
   hunger: 'Сытость',
   thirst: 'Жажда',
-  health: 'Здоровье',
-  mood: 'Настроение',
+  strength: 'Сила',
+  agility: 'Ловкость',
 };
 
 const STAT_ICONS = {
   hunger: '🍗',
   thirst: '💧',
-  health: '❤️',
-  mood: '😎',
+  strength: '💪',
+  agility: '⚡',
 };
 
-const STAT_ORDER = ['hunger', 'thirst', 'health', 'mood'];
+const STAT_ORDER = ['hunger', 'thirst', 'strength', 'agility'];
 
 export function createReplySystem({ elements, getHighlightButton }) {
   const {
