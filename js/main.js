@@ -398,9 +398,7 @@ function updateDeathState(stats) {
   const deathModal = document.getElementById('death-modal');
   if (!deathModal) return;
   const deadNow =
-    Math.round(stats.hunger ?? 0) <= 0 &&
-    Math.round(stats.thirst ?? 0) <= 0 &&
-    Math.round(stats.strength ?? 0) <= 0;
+    Math.round(stats.hunger ?? 0) <= 0 && Math.round(stats.thirst ?? 0) <= 0;
   if (!deadNow || deathFlowActive) {
     if (!deathFlowActive) {
       deathModal.classList.remove('is-open');
@@ -423,6 +421,8 @@ function updateDeathState(stats) {
   deathModal.removeAttribute('hidden');
   deathModal.setAttribute('aria-hidden', 'false');
   deathModal.classList.add('is-open');
+  shopUpgradeHint?.hide?.();
+  document.documentElement.classList.remove('is-shop-hint-active');
   pauseTimers();
   homeSpawns?.stop();
 }
@@ -1710,6 +1710,10 @@ function isSpawnBlocked() {
   );
 }
 
+function isKolobokStarved(stats = gameState.get()) {
+  return Math.round(stats.hunger ?? 0) <= 0 && Math.round(stats.thirst ?? 0) <= 0;
+}
+
 function isRunnerScreenVisible() {
   const layer = document.getElementById('runner-layer');
   return Boolean(layer && !layer.hidden);
@@ -1718,6 +1722,7 @@ function isRunnerScreenVisible() {
 function tryShowShopUpgradeHint() {
   if (isFeedFlowOnScreen()) return;
   if (isRunnerScreenVisible()) return;
+  if (isKolobokStarved()) return;
   if (runner?.isActive() || isTutorialUiLocking() || badFoodTip?.isActive()) return;
   if (shopScreen?.isOpen() || roadmapScreen?.isOpen()) return;
   shopUpgradeHint?.tryShow();
@@ -2113,28 +2118,33 @@ function bindEvents() {
 
 }
 
-function openShopScreen() {
-  if (
-    isRunnerScreenVisible() ||
-    runner?.isActive() ||
-    isTutorialUiLocking() ||
-    badFoodTip?.isActive() ||
-    roadmapScreen?.isOpen()
-  ) {
-    return false;
-  }
-  if (isFeedFlowOnScreen()) return false;
-
+function openShopScreen({ force = false } = {}) {
+  syncPurchaseStuckState();
   if (purchase?.isActive?.()) {
     purchase.forceReset();
     clearPurchaseOverlayState();
   }
 
+  if (isRunnerScreenVisible() || runner?.isActive()) {
+    return false;
+  }
+
+  if (!force) {
+    if (isTutorialUiLocking() || badFoodTip?.isActive() || roadmapScreen?.isOpen()) {
+      return false;
+    }
+    if (isFeedFlowOnScreen()) return false;
+  } else if (badFoodTip?.isActive() || roadmapScreen?.isOpen()) {
+    return false;
+  }
+
   kolobokLecture?.dismiss?.();
   shopUpgradeHint?.hide();
+  document.documentElement.classList.remove('is-shop-hint-active');
   replySystem?.hideAll();
   shopTutorial?.forceReset?.();
-  shopScreen?.open();
+  if (!shopScreen?.open) return false;
+  shopScreen.open();
   updateShopButton();
   kickHomeSpawns();
   return true;
@@ -2696,7 +2706,7 @@ export async function launchGame() {
     });
     shopTutorial = createShopTutorial();
     shopUpgradeHint = createShopUpgradeHint({
-      onOpenShop: () => openShopScreen(),
+      onOpenShop: () => openShopScreen({ force: true }),
       onDismiss: () => {
         refreshPhrase(true);
         if (!isSpawnBlocked()) startHomeFoods();

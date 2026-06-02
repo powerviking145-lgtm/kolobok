@@ -13,6 +13,8 @@ export function shouldShowShopUpgradeHint() {
   if (gameState.getStars() < (cfg.minStars ?? 100)) return false;
 
   const snap = gameState.get();
+  if (Math.round(snap.hunger ?? 0) <= 0 && Math.round(snap.thirst ?? 0) <= 0) return false;
+
   return (CONFIG.statBars ?? []).some((bar) => (snap.stats?.[bar.key]?.level ?? 0) === 0);
 }
 
@@ -81,14 +83,16 @@ export function createShopUpgradeHint({
     e?.stopPropagation?.();
     vibrate(CONFIG.ui?.hapticUpgradeHintOpen ?? [16, 14, 22]);
     hide();
-    const opened = onOpenShop?.() !== false;
-    if (opened) {
-      markShown();
-      return;
-    }
-    window.setTimeout(() => {
-      if (shouldShowShopUpgradeHint()) show();
-    }, 0);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const opened = onOpenShop?.() === true;
+        if (opened) {
+          markShown();
+          return;
+        }
+        if (shouldShowShopUpgradeHint()) show();
+      });
+    });
   }
 
   function onLater(e) {

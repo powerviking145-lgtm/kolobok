@@ -2726,6 +2726,21 @@ html.is-shop-hint-active #action-prompt {
   pointer-events: none !important;
 }
 
+html.is-shop-hint-active #shop-upgrade-hint.is-visible {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(38%, 46dvh, 54%);
+  z-index: 1000;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+html.is-shop-hint-active #shop-upgrade-hint.is-visible .btn {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+}
+
 html.is-shop-hint-active::before {
   content: '';
   position: fixed;
