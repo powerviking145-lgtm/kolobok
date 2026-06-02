@@ -454,11 +454,12 @@ export function getFoodPhotoFeedPhrase(food) {
   if (!food) return pickNamedFrom(['{name}, норм. Зарядил.', 'Кайф, бро.']);
   const lecture = getFoodLecturePhrase(food);
   const templates = [
-    `{name}, вижу ${food.emoji} ${food.name}. ${lecture}`,
+    `{name}, ${food.emoji} ${food.name} — норм. ${lecture}`,
     `${food.emoji} ${food.name}? ${lecture}`,
     `{name}, это ж ${food.name}. ${lecture}`,
     `О, ${food.name} ${food.emoji}. ${lecture}`,
-    `{name}, сфоткал — уважаю. ${lecture}`,
+    `{name}, сам сказал — советы точнее. ${lecture}`,
+    `{name}, накормил — уважаю. ${lecture}`,
   ];
   return pickNamedFrom(templates);
 }

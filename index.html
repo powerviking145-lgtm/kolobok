@@ -266,16 +266,23 @@
         <div class="receipt-scan-modal__backdrop food-photo-modal__backdrop" id="food-photo-backdrop"></div>
         <div class="receipt-scan-modal__card food-photo-card" role="dialog" aria-modal="true" aria-labelledby="food-photo-title">
           <button type="button" class="receipt-scan-modal__close food-photo-card__close" id="food-photo-close" aria-label="Закрыть">✕</button>
-          <h2 class="receipt-scan-modal__title food-photo-card__title" id="food-photo-title">Сфоткай еду</h2>
+          <h2 class="receipt-scan-modal__title food-photo-card__title" id="food-photo-title">Покорми колобка</h2>
           <img class="food-photo-preview" id="food-photo-preview-img" alt="" hidden decoding="async" />
 
           <div class="receipt-scan-modal__state" data-food-photo-state="pick">
-            <p class="tutorial-card__text food-photo-card__text">Сфоткай тарелку или продукт.</p>
+            <p class="tutorial-card__text food-photo-card__text" id="food-photo-pick-intro"></p>
             <div class="receipt-scan-modal__pick-actions food-photo-pick-actions">
-              <button type="button" class="btn btn--primary tutorial-card__next" id="food-photo-camera-btn">📸 Снять</button>
-              <button type="button" class="btn btn--secondary food-photo-card__btn-alt" id="food-photo-gallery-btn">🖼 Из галереи</button>
+              <button type="button" class="btn btn--primary tutorial-card__next" id="food-photo-camera-btn">📸 Сфоткать еду</button>
+              <button type="button" class="btn btn--primary tutorial-card__next" id="food-photo-gallery-btn">🖼 Из галереи</button>
+              <button type="button" class="btn btn--secondary food-photo-card__btn-alt food-photo-manual-fallback" id="food-photo-manual-btn">🤷 Ничего под рукой — скажу, что ем</button>
               <input type="file" id="food-photo-file" accept="image/*" hidden aria-hidden="true" />
             </div>
+          </div>
+
+          <div class="receipt-scan-modal__state food-photo-manual" data-food-photo-state="manual" hidden>
+            <p class="tutorial-card__text food-photo-card__text" id="food-photo-manual-hint"></p>
+            <div class="food-photo-manual-list" id="food-photo-manual-list"></div>
+            <button type="button" class="btn btn--secondary food-photo-card__btn-alt food-photo-manual-back" id="food-photo-manual-back">← Назад</button>
           </div>
 
           <div class="receipt-scan-modal__state" data-food-photo-state="loading" hidden>
@@ -1113,7 +1120,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '196';
+      var BUILD = '197';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

@@ -167,7 +167,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   }
 
   function canDismissModal() {
-    return currentState === 'pick' || currentState === 'error';
+    return currentState === 'pick' || currentState === 'manual' || currentState === 'error';
   }
 
   function syncCloseChrome() {
@@ -187,13 +187,25 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     const title = modal.querySelector('#food-photo-title');
     const titles = cfg();
     if (title) {
-      if (name === 'pick') title.textContent = titles.titlePick ?? 'Сфоткай еду';
+      if (name === 'pick') title.textContent = titles.titlePick ?? 'Покорми колобка';
+      if (name === 'manual') title.textContent = titles.titleManual ?? 'Что ты ешь?';
       if (name === 'loading') title.textContent = titles.titleAnalyze ?? 'Смотрю…';
       if (name === 'confirm') title.textContent = titles.titleConfirm ?? 'Что на фото?';
       if (name === 'result') title.textContent = titles.titleResult ?? 'Зашло!';
       if (name === 'error') title.textContent = titles.titleError ?? 'Не вышло';
     }
     syncCloseChrome();
+  }
+
+  function syncPickChrome() {
+    const pickIntroEl = document.getElementById('food-photo-pick-intro');
+    if (pickIntroEl) pickIntroEl.textContent = cfg().pickIntro ?? '';
+    const manualBtn = modal?.querySelector('#food-photo-manual-btn');
+    const cameraBtn = modal?.querySelector('#food-photo-camera-btn');
+    const galleryBtn = modal?.querySelector('#food-photo-gallery-btn');
+    if (manualBtn && cfg().buttonManual) manualBtn.textContent = cfg().buttonManual;
+    if (cameraBtn && cfg().buttonCamera) cameraBtn.textContent = cfg().buttonCamera;
+    if (galleryBtn && cfg().buttonGallery) galleryBtn.textContent = cfg().buttonGallery;
   }
 
   function setOpen(open) {
@@ -271,6 +283,38 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       btn.addEventListener('click', () => onPick(food));
       choicesEl.appendChild(btn);
     });
+  }
+
+  function renderManualPick() {
+    const listEl = document.getElementById('food-photo-manual-list');
+    if (!listEl) return;
+    listEl.replaceChildren();
+    getFoodList().forEach((food) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'food-photo-manual-item btn btn--secondary';
+      btn.textContent = `${food.emoji} ${food.name}`;
+      btn.addEventListener('click', () => showResult(food));
+      listEl.appendChild(btn);
+    });
+  }
+
+  function showManualPick() {
+    const hintEl = document.getElementById('food-photo-manual-hint');
+    if (hintEl) {
+      hintEl.textContent =
+        cfg().manualHint ?? 'Тапни продукт — накормлю и выдам факт по делу.';
+    }
+    renderManualPick();
+    showState('manual');
+  }
+
+  function requireGeminiForPhoto() {
+    if (isGeminiFoodPhotoReady() || cfg().fallbackToMock) return true;
+    showError(
+      'Фото нужен Gemini: proxyUrl (Firebase) или ключ в secrets.local.js — FOOD_PHOTO.md. Или жми «Ничего под рукой — скажу, что ем».'
+    );
+    return false;
   }
 
   function applyFeed(food, { tutorialFeed = false } = {}) {
@@ -455,12 +499,7 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
   function open() {
     if (active) return;
     setOpen(true);
-    if (!isGeminiFoodPhotoReady() && !cfg().fallbackToMock) {
-      showError(
-        'Нужен Gemini: proxyUrl (Firebase) или ключ в secrets.local.js — FOOD_PHOTO.md'
-      );
-      return;
-    }
+    syncPickChrome();
     showState('pick');
     if (confirmHint && cfg().pickHint) {
       confirmHint.textContent = cfg().pickHint;
@@ -520,6 +559,8 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
     const btnErrorClose = modal.querySelector('#food-photo-error-close');
     const cameraBtn = modal.querySelector('#food-photo-camera-btn');
     const galleryBtn = modal.querySelector('#food-photo-gallery-btn');
+    const manualBtn = modal.querySelector('#food-photo-manual-btn');
+    const manualBackBtn = modal.querySelector('#food-photo-manual-back');
     const fileInput = modal.querySelector('#food-photo-file');
 
     closeBtn?.addEventListener('click', close);
@@ -549,8 +590,17 @@ export function createFoodPhotoFeed({ callbacks = {} } = {}) {
       fileInput.click();
     }
 
-    cameraBtn?.addEventListener('click', () => openPicker({ capture: 'environment' }));
-    galleryBtn?.addEventListener('click', () => openPicker());
+    manualBtn?.addEventListener('click', showManualPick);
+    manualBackBtn?.addEventListener('click', () => showState('pick'));
+
+    cameraBtn?.addEventListener('click', () => {
+      if (!requireGeminiForPhoto()) return;
+      openPicker({ capture: 'environment' });
+    });
+    galleryBtn?.addEventListener('click', () => {
+      if (!requireGeminiForPhoto()) return;
+      openPicker();
+    });
 
     fileInput?.addEventListener('change', () => {
       const file = fileInput.files?.[0];

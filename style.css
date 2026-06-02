@@ -3162,6 +3162,69 @@ html.is-onboarding-active .tutorial-overlay {
   box-shadow: none;
 }
 
+.food-photo-pick-actions .food-photo-manual-fallback {
+  margin-top: 0.15rem;
+  font-size: clamp(0.82rem, 3.6vw, 0.92rem);
+  font-weight: 700;
+  min-height: clamp(2.5rem, 10vw, 2.85rem);
+}
+
+.food-photo-manual-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: min(40dvh, 16rem);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 0.45rem;
+}
+
+.food-photo-manual-item {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 700;
+  color: var(--game-text-dark) !important;
+}
+
+.food-photo-pick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.food-photo-manual-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  max-height: min(42dvh, 16rem);
+  overflow-y: auto;
+  margin-bottom: 0.55rem;
+  padding-right: 0.15rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.food-photo-manual-item {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.35rem;
+  font-size: clamp(0.78rem, 3.2vw, 0.86rem);
+  font-weight: 700;
+  text-align: center;
+  color: var(--game-text-dark);
+  background: rgba(255, 255, 255, 0.72);
+  border: 0.0625rem solid rgba(42, 31, 26, 0.14);
+  border-radius: 0.45rem;
+}
+
+.food-photo-manual-item:active {
+  transform: scale(0.98);
+}
+
+.food-photo-manual-back {
+  width: 100%;
+}
+
 .food-photo-choices {
   display: flex;
   flex-direction: column;
