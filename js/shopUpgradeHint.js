@@ -80,9 +80,15 @@ export function createShopUpgradeHint({
     e?.preventDefault?.();
     e?.stopPropagation?.();
     vibrate(CONFIG.ui?.hapticUpgradeHintOpen ?? [16, 14, 22]);
-    markShown();
     hide();
-    window.setTimeout(() => onOpenShop?.(), 0);
+    const opened = onOpenShop?.() !== false;
+    if (opened) {
+      markShown();
+      return;
+    }
+    window.setTimeout(() => {
+      if (shouldShowShopUpgradeHint()) show();
+    }, 0);
   }
 
   function onLater(e) {
@@ -101,11 +107,9 @@ export function createShopUpgradeHint({
   openBtn?.addEventListener('pointerdown', stopPointer, true);
   laterBtn?.addEventListener('click', onLater);
   laterBtn?.addEventListener('pointerdown', stopPointer, true);
-  shopBtn?.addEventListener('click', () => {
+  shopBtn?.addEventListener('click', (e) => {
     if (!active) return;
-    markShown();
-    hide();
-    vibrate(CONFIG.ui?.hapticUpgradeHintOpen ?? [16, 14, 22]);
+    openShop(e);
   });
 
   return {

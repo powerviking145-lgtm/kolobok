@@ -4411,6 +4411,28 @@ html.is-burn-run-ready:not(.is-lecture-active) .speech-dock {
   align-items: stretch;
 }
 
+html.is-shop-hint-active:has(#app.is-runner-active)::before {
+  display: none !important;
+}
+
+#app.is-runner-active .shop-upgrade-hint {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+#app.is-runner-active .runner-results:not([hidden]) {
+  z-index: 80;
+  pointer-events: auto;
+}
+
+html:has(#app.is-runner-active) #tutorial-overlay,
+html:has(#app.is-runner-active) #tutorial-spotlight {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 #app.is-runner-active .home-ui {
   visibility: hidden;
   pointer-events: none;

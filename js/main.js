@@ -1710,8 +1710,14 @@ function isSpawnBlocked() {
   );
 }
 
+function isRunnerScreenVisible() {
+  const layer = document.getElementById('runner-layer');
+  return Boolean(layer && !layer.hidden);
+}
+
 function tryShowShopUpgradeHint() {
   if (isFeedFlowOnScreen()) return;
+  if (isRunnerScreenVisible()) return;
   if (runner?.isActive() || isTutorialUiLocking() || badFoodTip?.isActive()) return;
   if (shopScreen?.isOpen() || roadmapScreen?.isOpen()) return;
   shopUpgradeHint?.tryShow();
@@ -2108,10 +2114,16 @@ function bindEvents() {
 }
 
 function openShopScreen() {
-  if (runner?.isActive() || isTutorialUiLocking() || badFoodTip?.isActive() || roadmapScreen?.isOpen()) {
-    return;
+  if (
+    isRunnerScreenVisible() ||
+    runner?.isActive() ||
+    isTutorialUiLocking() ||
+    badFoodTip?.isActive() ||
+    roadmapScreen?.isOpen()
+  ) {
+    return false;
   }
-  if (isFeedFlowOnScreen()) return;
+  if (isFeedFlowOnScreen()) return false;
 
   if (purchase?.isActive?.()) {
     purchase.forceReset();
@@ -2125,6 +2137,7 @@ function openShopScreen() {
   shopScreen?.open();
   updateShopButton();
   kickHomeSpawns();
+  return true;
 }
 
 function setActionButtonLabels() {
@@ -2221,9 +2234,12 @@ function initRunner() {
         const stats = gameState.get();
         currentMood = getMood(stats);
         updateStatsBars(stats);
+        purgeTutorialChrome();
       },
       onHome: () => {
+        purgeTutorialChrome();
         resumeTimers();
+        gameState.syncDerivedFromPrimary?.({ immediate: true });
         const stats = gameState.get();
         currentMood = getMood(stats);
         updateStatsBars(stats);

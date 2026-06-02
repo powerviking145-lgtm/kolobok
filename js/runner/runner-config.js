@@ -76,9 +76,10 @@ export const RUNNER_CONFIG = {
 
   runStats: {
     redZoneMax: 20,
-    drainEveryMeters: 15,
-    drainHunger: 1,
-    drainThirst: 1,
+    /** В забеге не тратим сытость/жажду — только сила/ловкость (см. collision/jump). */
+    drainEveryMeters: 0,
+    drainHunger: 0,
+    drainThirst: 0,
     /** Стартовый % силы/ловкости в забеге (от шкалы 120, не выше личного max). */
     combatStartDisplayPercent: 80,
     collisionStrengthLoss: 7,

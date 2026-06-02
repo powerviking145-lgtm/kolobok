@@ -60,7 +60,6 @@ export function createRunner(options) {
   let runAccelMul = 1;
   let speedMul = 1;
   let lastStats = null;
-  let lastDrainMilestone = 0;
   let catchEndsAt = 0;
   let ctx = null;
   let size = { width: 0, height: 0 };
@@ -123,19 +122,6 @@ export function createRunner(options) {
 
   function refreshSpeedMul() {
     speedMul = getStatSpeedMultiplier(gameState.get());
-  }
-
-  function applyMeterDrain() {
-    const rs = RUNNER_CONFIG.runStats;
-    const m = Math.floor(distance);
-    if (m < rs.drainEveryMeters) return;
-    const milestone = Math.floor(m / rs.drainEveryMeters) * rs.drainEveryMeters;
-    if (milestone > lastDrainMilestone) {
-      lastDrainMilestone = milestone;
-      gameState.changeStat('hunger', -rs.drainHunger);
-      gameState.changeStat('thirst', -rs.drainThirst);
-      refreshSpeedMul();
-    }
   }
 
   function checkCombatGameOver(stats) {
@@ -308,7 +294,6 @@ export function createRunner(options) {
     if (frameCount >= framesPerMeter) {
       frameCount = 0;
       distance += 1;
-      applyMeterDrain();
     }
 
     if (checkCombatGameOver(stats)) return;
@@ -358,7 +343,6 @@ export function createRunner(options) {
     score = 0;
     frameCount = 0;
     runAccelMul = 1;
-    lastDrainMilestone = 0;
     catchEndsAt = 0;
     speedMul = getStatSpeedMultiplier(stats);
     elements.bestScore = bestScore || 0;
