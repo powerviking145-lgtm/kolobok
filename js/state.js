@@ -473,6 +473,7 @@ export function normalizeState(raw = {}) {
       telegramId: null,
       telegramUsername: null,
       telegramFirstName: null,
+      phoneNumber: null,
     },
   };
 
@@ -1239,11 +1240,12 @@ export const gameState = {
     emitChange();
   },
 
-  setCloudIdentity({ telegramId, telegramUsername, telegramFirstName }) {
+  setCloudIdentity({ telegramId, telegramUsername, telegramFirstName, phoneNumber }) {
     if (!state.cloud) state.cloud = {};
     if (telegramId != null) state.cloud.telegramId = telegramId;
     if (telegramUsername != null) state.cloud.telegramUsername = telegramUsername;
     if (telegramFirstName != null) state.cloud.telegramFirstName = telegramFirstName;
+    if (phoneNumber != null) state.cloud.phoneNumber = phoneNumber;
   },
 
   importFromCloud(cloud = {}) {
@@ -1306,14 +1308,19 @@ export const gameState = {
       pvpLosses: cloud.pvpLosses ?? raw.pvpLosses,
     });
     state = merged;
+    if (cloud.phoneNumber) {
+      gameState.setCloudIdentity({ phoneNumber: cloud.phoneNumber });
+    }
     emitChange();
     gameState.save();
   },
 
-  exportToCloud({ telegramId, feedCooldownUntil = 0 } = {}) {
+  exportToCloud({ telegramId, userDocId, feedCooldownUntil = 0 } = {}) {
     const raw = gameState.getRaw();
     return {
-      telegramId: Number(telegramId),
+      userDocId: userDocId ?? null,
+      telegramId: telegramId != null ? Number(telegramId) : null,
+      phoneNumber: state.cloud?.phoneNumber ?? null,
       telegramUsername: state.cloud?.telegramUsername ?? null,
       telegramFirstName: state.cloud?.telegramFirstName ?? null,
       kolobokName: gameState.getKolobokName(),

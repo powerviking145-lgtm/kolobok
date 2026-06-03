@@ -1,4 +1,5 @@
 import { CONFIG } from './config.js';
+import { getCachedWebPhone } from './webIdentity.js';
 
 let ready = false;
 
@@ -105,6 +106,7 @@ export function getTelegramUser() {
 export function canUseCloudSync() {
   if (!CONFIG.firebase?.enabled) return false;
   if (getTelegramUserId() != null) return true;
+  if (getCachedWebPhone()) return true;
   return !!(cloudCfg().devBypass && cloudCfg().devTelegramId != null);
 }
 

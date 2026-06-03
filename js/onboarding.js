@@ -1,7 +1,8 @@
 import { CONFIG } from './config.js';
 import { gameState } from './state.js';
-import { canUseCloudSync, waitForTelegramUser } from './telegram.js';
+import { canUseCloudSync, waitForTelegramUser, isTelegramMiniApp } from './telegram.js';
 import { flushCloudSync, getLastPullInfo, markCloudDirty } from './cloudSync.js';
+import { runWebPhoneOnboardingIfNeeded } from './webIdentity.js';
 
 function cfg() {
   return CONFIG.onboarding ?? {};
@@ -81,6 +82,13 @@ function showNameModal() {
  */
 export async function runOnboardingIfNeeded() {
   await waitForTelegramUser();
+
+  if (!isTelegramMiniApp()) {
+    const phoneOk = await runWebPhoneOnboardingIfNeeded();
+    if (!phoneOk) return false;
+    markCloudDirty();
+    await flushCloudSync().catch(() => {});
+  }
 
   if (!canUseCloudSync()) {
     return true;

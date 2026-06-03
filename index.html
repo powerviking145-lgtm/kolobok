@@ -1027,6 +1027,24 @@
     </div>
   </div>
 
+  <div class="onboarding-modal" id="web-phone-overlay" hidden aria-hidden="true">
+    <div class="onboarding-modal__backdrop"></div>
+    <div class="onboarding-modal__card" role="dialog" aria-modal="true" aria-labelledby="web-phone-title">
+      <h2 class="onboarding-modal__title" id="web-phone-title">Введи номер телефона</h2>
+      <p class="onboarding-modal__hint">Формат: +7 XXX XXX XX XX</p>
+      <input
+        type="tel"
+        class="onboarding-modal__input"
+        id="web-phone-input"
+        inputmode="tel"
+        autocomplete="tel"
+        enterkeyhint="done"
+      />
+      <p class="onboarding-modal__error" id="web-phone-error" aria-live="polite"></p>
+      <button type="button" class="btn btn--primary onboarding-modal__submit" id="web-phone-submit">Продолжить</button>
+    </div>
+  </div>
+
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- secrets.local.js только локально (gitignore); в TG не нужен — фото через Firebase proxy -->
   <script src="js/secrets.local.js" onerror="void 0"></script>
@@ -1122,7 +1140,7 @@
         (tg.initData || (tg.platform && tg.platform !== 'unknown'))
       );
 
-      var BUILD = '200';
+      var BUILD = '202';
 
       try {
         var buildMod = await import(root + 'js/build.js?_=' + Date.now());

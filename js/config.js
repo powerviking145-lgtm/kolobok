@@ -22,6 +22,8 @@ export const CONFIG = {
 
   cloudSync: {
     syncIntervalMs: 10000,
+    /** localStorage-ключ номера для входа без Telegram */
+    webPhoneStorageKey: 'kolobok_web_phone',
     /** Ждём user.id из initData (TG иногда отдаёт с задержкой) */
     telegramWaitMs: 10000,
     pullTimeoutMs: 8000,
@@ -67,6 +69,12 @@ export const CONFIG = {
     button: 'Погнали',
     errorTooShort: 'Минимум 2 символа, бро.',
     errorTooLong: 'Короче, макс 16 символов.',
+    phone: {
+      title: 'Введи номер телефона',
+      hint: 'Формат: +7 XXX XXX XX XX',
+      button: 'Продолжить',
+      errorInvalid: 'Нужен полный номер: +7 и 10 цифр после него.',
+    },
   },
 
   stats: {
@@ -414,7 +422,7 @@ export const CONFIG = {
 
   tutorial: {
     spotlightPad: 10,
-    firstNeedsPercent: 24,
+    firstNeedsPercent: 19,
     tutorialBonusBadge: '🎁 Первая кормёжка — дальше сам.',
     /** Обычные шаги ожидания (тап и т.п.) */
     stepSkipDelayMs: 6000,

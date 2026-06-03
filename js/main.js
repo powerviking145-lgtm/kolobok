@@ -1,6 +1,6 @@
 import { CONFIG, isKolobokSpeechEnabled } from './config.js';
 import { eventBus } from './eventBus.js';
-import { gameState } from './state.js';
+import { gameState, percentToAbsolute } from './state.js';
 import {
   getMood,
   pickPhrase,
@@ -58,6 +58,7 @@ import {
 import { initTelegram, isTelegramMiniApp, waitForTelegramUser, canUseCloudSync } from './telegram.js';
 import { pullProfile, startCloudSync, flushCloudSync, markCloudDirty, wipeCloudProfile } from './cloudSync.js';
 import { runOnboardingIfNeeded } from './onboarding.js';
+import { clearCachedWebPhone } from './webIdentity.js';
 import { isFirebaseEnabled } from './firebaseApp.js';
 
 const ui = {
@@ -320,6 +321,7 @@ async function handleResetProgress(closeMenuSheet) {
   shopTutorial?.forceReset?.();
   clearLastFeedTimestamp();
   stopFeedCooldownTicker();
+  clearCachedWebPhone();
 
   gameState.resetAll();
   resetTutorialFlag();
@@ -380,7 +382,7 @@ async function rebakeKolobokAfterDeath() {
     await runOnboardingIfNeeded();
 
     if (!hasTutorialCompletion()) {
-      prepareFirstTutorialNeeds();
+      applyBirthNeeds({ force: true });
       pauseGameTimers();
       homeSpawns?.stop();
       tutorial?.start();
@@ -2386,20 +2388,19 @@ function initFoodPhotoFeed() {
   });
 }
 
-function prepareFirstTutorialNeeds() {
-  const target = CONFIG.tutorial?.firstNeedsPercent ?? 24;
+function applyBirthNeeds({ force = false } = {}) {
+  const target = CONFIG.tutorial?.firstNeedsPercent ?? 19;
   const onceKey = 'tutorial-first-needs-applied';
-  try {
-    if (sessionStorage.getItem(onceKey) === '1') return;
-  } catch {
-    /* ignore */
+  if (!force) {
+    try {
+      if (sessionStorage.getItem(onceKey) === '1') return;
+    } catch {
+      /* ignore */
+    }
   }
-  const curHunger = gameState.getStatDisplayPercent('hunger');
-  const curThirst = gameState.getStatDisplayPercent('thirst');
-  const maxHunger = gameState.getStatMax('hunger');
-  const maxThirst = gameState.getStatMax('thirst');
-  if (curHunger > target) gameState.setStat('hunger', Math.round((target / 100) * maxHunger));
-  if (curThirst > target) gameState.setStat('thirst', Math.round((target / 100) * maxThirst));
+  const abs = percentToAbsolute(target);
+  gameState.setStat('hunger', abs);
+  gameState.setStat('thirst', abs);
   gameState.syncDerivedFromPrimary({ immediate: true });
   try {
     sessionStorage.setItem(onceKey, '1');
@@ -2851,6 +2852,9 @@ export async function launchGame() {
 
     gameState.load();
     syncTutorialCompletionFlags();
+    if (!hasTutorialCompletion()) {
+      applyBirthNeeds();
+    }
     initFeedCooldown();
     const offlineDecayReport = gameState.consumeOfflineDecayReport?.();
     setPhraseNameResolver(() => gameState.getKolobokName());
@@ -2897,6 +2901,8 @@ export async function launchGame() {
     updateShopButton();
 
     resumeHomeVideo();
+
+    await hideBootLoaderWhenReady();
 
     await runCloudOnboardingGateCapped();
 

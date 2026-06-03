@@ -10,6 +10,13 @@ import {
   clearLastFeedTimestamp,
 } from './feedCooldown.js';
 import { canUseCloudSync, getTelegramUser, getTelegramUserId } from './telegram.js';
+import { getCachedWebPhone, getWebPhoneUserDocId } from './webIdentity.js';
+
+function getSyncUserDocId() {
+  const tgId = getTelegramUserId();
+  if (tgId != null) return String(tgId);
+  return getWebPhoneUserDocId();
+}
 
 let dirty = false;
 let syncTimerId = null;
@@ -19,8 +26,8 @@ function cfg() {
   return CONFIG.cloudSync ?? {};
 }
 
-function usersCollectionPath(telegramId) {
-  return `users/${String(telegramId)}`;
+function usersCollectionPath(userDocId) {
+  return `users/${String(userDocId)}`;
 }
 
 function feedCooldownUntilFromLocal(now = Date.now()) {
@@ -66,25 +73,29 @@ export function getLastPullInfo() {
 }
 
 async function pullProfileInternal() {
-  const telegramId = getTelegramUserId();
+  const userDocId = getSyncUserDocId();
   const tgUser = getTelegramUser();
+  const webPhone = getCachedWebPhone();
 
   const db = await getFirestoreDb();
   const { doc, getDoc } = await import(
     'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js'
   );
-  const snap = await getDoc(doc(db, usersCollectionPath(telegramId)));
+  const snap = await getDoc(doc(db, usersCollectionPath(userDocId)));
     if (!snap.exists()) {
       lastPull = {
         ok: true,
         isNewUser: true,
-        telegramId,
+        telegramId: getTelegramUserId(),
+        webPhone,
+        userDocId,
         telegramUsername: tgUser?.username ?? null,
       };
       gameState.setCloudIdentity({
-        telegramId,
+        telegramId: getTelegramUserId(),
         telegramUsername: tgUser?.username ?? null,
         telegramFirstName: tgUser?.first_name ?? null,
+        phoneNumber: webPhone,
       });
       dirty = true;
       return lastPull;
@@ -102,16 +113,19 @@ async function pullProfileInternal() {
     }
 
     gameState.setCloudIdentity({
-      telegramId,
+      telegramId: getTelegramUserId(),
       telegramUsername: tgUser?.username ?? cloud.telegramUsername ?? null,
       telegramFirstName: tgUser?.first_name ?? cloud.telegramFirstName ?? null,
+      phoneNumber: cloud.phoneNumber ?? webPhone ?? null,
     });
 
     const needsName = !gameState.getKolobokName();
     lastPull = {
       ok: true,
       isNewUser: needsName,
-      telegramId,
+      telegramId: getTelegramUserId(),
+      webPhone: cloud.phoneNumber ?? webPhone ?? null,
+      userDocId,
       hadCloud: true,
       cloudTs,
       localTs,
@@ -136,9 +150,10 @@ export async function pullProfile() {
   }
 }
 
-async function pushProfileInternal(telegramId) {
+async function pushProfileInternal(userDocId) {
   const payload = gameState.exportToCloud({
-    telegramId,
+    userDocId,
+    telegramId: getTelegramUserId(),
     feedCooldownUntil: feedCooldownUntilFromLocal(),
   });
   const db = await getFirestoreDb();
@@ -146,7 +161,7 @@ async function pushProfileInternal(telegramId) {
     'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js'
   );
   await setDoc(
-    doc(db, usersCollectionPath(telegramId)),
+    doc(db, usersCollectionPath(userDocId)),
     {
       ...payload,
       updatedAt: serverTimestamp(),
@@ -162,13 +177,13 @@ export async function pushProfile() {
   if (!isFirebaseEnabled() || !canUseCloudSync()) return { ok: false, skipped: true };
   if (!dirty) return { ok: true, skipped: true };
 
-  const telegramId = getTelegramUserId();
-  if (telegramId == null) return { ok: false, skipped: true };
+  const userDocId = getSyncUserDocId();
+  if (userDocId == null) return { ok: false, skipped: true };
 
   try {
     const timeoutMs = cfg().pushTimeoutMs ?? 8000;
     return await withTimeout(
-      pushProfileInternal(telegramId),
+      pushProfileInternal(userDocId),
       timeoutMs,
       'cloud-push-timeout'
     );
@@ -216,12 +231,13 @@ export function markCloudDirty() {
 }
 
 function markCloudAsNewUser() {
-  const telegramId = getTelegramUserId();
+  const userDocId = getSyncUserDocId();
   lastPull = {
     ok: true,
     isNewUser: true,
     hadCloud: false,
-    telegramId: telegramId ?? null,
+    telegramId: getTelegramUserId(),
+    userDocId: userDocId ?? null,
   };
   dirty = true;
 }
@@ -233,8 +249,8 @@ export async function wipeCloudProfile() {
     return { ok: false, skipped: true };
   }
 
-  const telegramId = getTelegramUserId();
-  if (telegramId == null) {
+  const userDocId = getSyncUserDocId();
+  if (userDocId == null) {
     markCloudAsNewUser();
     return { ok: false, skipped: true };
   }
@@ -246,7 +262,7 @@ export async function wipeCloudProfile() {
     );
     const timeoutMs = cfg().pushTimeoutMs ?? 8000;
     await withTimeout(
-      deleteDoc(doc(db, usersCollectionPath(telegramId))),
+      deleteDoc(doc(db, usersCollectionPath(userDocId))),
       timeoutMs,
       'cloud-wipe-timeout'
     );
